@@ -5,67 +5,63 @@ namespace App\Services\VRP;
 class PathBuilderService
 {
     /**
-     * Convert VRP result (node indexes) into full map paths.
-     *
-     * @param array $routes          VRP solution from Clarke–Wright
-     * @param array $points          nodeIds in matrix order
-     * @param array $nodes           graph['nodes']
-     * @param array $edges           graph['edges']
-     *
-     * @return array vehicles => [
-     *     'vehicle_id' => x,
-     *     'sequence' => [...],
-     *     'steps' => [ ['x'=>..,'y'=>..], ... ],
-     *     'full_path' => [ ['lat'=>..,'lng'=>..], ... ],
-     *     'cost' => total cost
-     * ]
+     * Now accepts explicit projection parameters ($baseLat, $baseLng, $scale)
      */
-    public static function buildPaths(array $routes, array $points, array $nodes, array $edges, float $pixelValue)
-    {
+    public static function buildPaths(
+        array $routes, 
+        array $points, 
+        array $nodes, 
+        array $edges, 
+        float $pixelValue, // Used for cost calculation
+        float $baseLat,    // New
+        float $baseLng,    // New
+        float $scale       // New
+    ) {
         $vehicles = [];
 
         foreach ($routes as $vehicleIndex => $vrpRoute) {
-            $sequence = $vrpRoute['nodes'];
-            $vehicleSteps = [];
+            $sequence        = $vrpRoute['nodes'];
+            $vehicleSteps    = [];
             $vehicleFullPath = [];
-            $totalCost = 0;
+            $totalCost       = 0;
 
             for ($i = 0; $i < count($sequence) - 1; $i++) {
-                
                 $fromIdx = $sequence[$i];
                 $toIdx   = $sequence[$i + 1];
 
                 $fromNodeId = $points[$fromIdx];
                 $toNodeId   = $points[$toIdx];
 
-                // Run Dijkstra to get path between nodes
+                // 1. Get path from graph
                 $result = DijkstraService::shortestPath($edges, $fromNodeId, $toNodeId);
 
-                $pathNodeIds = $result['path'];
-                $totalCost += $result['cost'];
-
-                // Convert nodeIDs to pixel coords
-                foreach ($pathNodeIds as $nodeId) {
-                    $vehicleSteps[] = $nodes[$nodeId];
+                // 2. Handle disconnected graph (Teleport fallback)
+                if (empty($result['path'])) {
+                    $p1 = $nodes[$fromNodeId];
+                    $p2 = $nodes[$toNodeId];
+                    $vehicleSteps[] = $p1;
+                    $vehicleSteps[] = $p2;
+                    // Straight line distance cost
+                    $dist = sqrt(($p1['x']-$p2['x'])**2 + ($p1['y']-$p2['y'])**2);
+                    $totalCost += ($dist * $pixelValue);
+                } else {
+                    $pathNodeIds = $result['path'];
+                    $totalCost  += $result['cost'];
+                    foreach ($pathNodeIds as $nodeId) {
+                        $vehicleSteps[] = $nodes[$nodeId];
+                    }
                 }
-
-                if (empty($pathNodeIds)) {
-    dd([
-        'fromNodeId' => $fromNodeId,
-        'toNodeId'   => $toNodeId,
-        'dijkstra'   => $result,
-        'edges_has_from' => isset($edges[$fromNodeId]),
-        'edges_has_to'   => isset($edges[$toNodeId]),
-    ]);
-}
             }
 
-            // Remove duplicate consecutive nodes
+            // 3. Clean steps
             $vehicleSteps = self::uniqueSteps($vehicleSteps);
 
-            // Convert pixel → lat/lng for map
+            // 4. Project steps to Lat/Lng using passed arguments
             foreach ($vehicleSteps as $p) {
-                $vehicleFullPath[] = self::projectPoint($p['x'], $p['y']);
+                $vehicleFullPath[] = [
+                    'lat' => $baseLat + ($p['y'] * $scale),
+                    'lng' => $baseLng + ($p['x'] * $scale),
+                ];
             }
 
             $vehicles[] = [
@@ -80,38 +76,17 @@ class PathBuilderService
         return $vehicles;
     }
 
-    //--------------------------
-    // Helper: remove duplicates
-    //--------------------------
     private static function uniqueSteps(array $steps): array
     {
         $unique = [];
-        $last = null;
-
+        $last   = null;
         foreach ($steps as $s) {
             $k = $s['x'] . '_' . $s['y'];
-
             if ($k !== $last) {
                 $unique[] = $s;
-                $last = $k;
+                $last     = $k;
             }
         }
-
         return $unique;
-    }
-
-    //--------------------------
-    // Helper: projection (same as frontend)
-    //--------------------------
-    public static function projectPoint($x, $y)
-    {
-        $BASE_LAT = -15.78;
-        $BASE_LNG = -47.93;
-        $SCALE = 0.00005;
-
-        return [
-            'lat' => $BASE_LAT + $y * $SCALE,
-            'lng' => $BASE_LNG + $x * $SCALE,
-        ];
     }
 }

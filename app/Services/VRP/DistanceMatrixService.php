@@ -4,36 +4,32 @@ namespace App\Services\VRP;
 
 class DistanceMatrixService
 {
-    /**
-     * Build a full pairwise distance matrix.
-     *
-     * @param array $edges       Graph adjacency list
-     * @param array $points      Array of nodeIds: ["3585_5015", "3200_4100", ...]
-     *
-     * @return array [
-     *   'matrix' => [[float]],
-     *   'points' => [nodeIds in matrix order]
-     * ]
-     */
     public static function build(array $edges, array $points): array
     {
         $n = count($points);
+        // Initialize matrix with INF
         $matrix = array_fill(0, $n, array_fill(0, $n, INF));
 
         for ($i = 0; $i < $n; $i++) {
             $source = $points[$i];
 
-            for ($j = 0; $j < $n; $j++) {
-                $target = $points[$j];
+            // OPTIMIZATION: Run Dijkstra ONCE per row (One-to-All)
+            // Instead of running it N times per row.
+            $distances = DijkstraService::findAllDistances($edges, $source);
 
+            for ($j = 0; $j < $n; $j++) {
                 if ($i === $j) {
                     $matrix[$i][$j] = 0;
                     continue;
                 }
 
-                // Run Dijkstra
-                $res = DijkstraService::shortestPath($edges, $source, $target);
-                $matrix[$i][$j] = $res['cost'];
+                $target = $points[$j];
+                
+                // Lookup cost in the calculated array. 
+                // If target not reachable, it stays INF.
+                if (isset($distances[$target])) {
+                    $matrix[$i][$j] = $distances[$target];
+                }
             }
         }
 

@@ -12,13 +12,12 @@ class ClarkeWrightService
         $vehicleCount = $vrp['vehicleCount'];
         $maxRouteCost = $vrp['maxRouteCost'];
 
-        $depot = 0; // depot index
+        $depot = 0; 
 
         // ---------------------------------------------
         // STEP 1: Initialize routes (each delivery alone)
         // ---------------------------------------------
         $routes = [];
-
         for ($i = 1; $i < $n; $i++) {
             $routes[$i] = [
                 'nodes' => [$depot, $i, $depot],
@@ -30,9 +29,9 @@ class ClarkeWrightService
         // STEP 2: Compute savings
         // ---------------------------------------------
         $savings = [];
-
         for ($i = 1; $i < $n; $i++) {
             for ($j = $i + 1; $j < $n; $j++) {
+                // S_ij = C_i0 + C_0j - C_ij
                 $saving = $matrix[$depot][$i] + $matrix[$depot][$j] - $matrix[$i][$j];
                 $savings[] = [
                     'i'      => $i,
@@ -42,17 +41,15 @@ class ClarkeWrightService
             }
         }
 
-        // Highest savings first
         usort($savings, fn ($a, $b) => $b['saving'] <=> $a['saving']);
 
         // ---------------------------------------------
-        // STEP 3: Merge routes based on savings
+        // STEP 3: Merge routes
         // ---------------------------------------------
         foreach ($savings as $s) {
             $i = $s['i'];
             $j = $s['j'];
 
-            // Find routes that currently contain i and j
             $ri = null;
             $rj = null;
 
@@ -61,7 +58,6 @@ class ClarkeWrightService
                 if (in_array($j, $r['nodes'], true)) $rj = $key;
             }
 
-            // If i and j are already in the same route or not found, skip
             if ($ri === null || $rj === null || $ri === $rj) {
                 continue;
             }
@@ -74,13 +70,12 @@ class ClarkeWrightService
 
             $startA = $nodesA[1];
             $endA   = $nodesA[count($nodesA) - 2];
-
             $startB = $nodesB[1];
             $endB   = $nodesB[count($nodesB) - 2];
 
             $newNodes = null;
 
-            // Case 1: A ... i, B j ...
+            // Case 1: End of A connects to Start of B
             if ($endA === $i && $startB === $j) {
                 $newNodes = array_merge(
                     [$depot],
@@ -89,7 +84,7 @@ class ClarkeWrightService
                     [$depot]
                 );
             }
-            // Case 2: B ... j, A i ...
+            // Case 2: End of B connects to Start of A
             elseif ($endB === $j && $startA === $i) {
                 $newNodes = array_merge(
                     [$depot],
@@ -99,20 +94,15 @@ class ClarkeWrightService
                 );
             }
 
-            if ($newNodes === null) {
-                continue;
-            }
+            if ($newNodes === null) continue;
 
-            // Compute new route cost
             $cost = self::computeCost($newNodes, $matrix);
 
-            // Enforce route cost limit
-            if ($cost > $maxRouteCost) {
-                continue;
-            }
+            if ($cost > $maxRouteCost) continue;
 
-            // Merge successful: remove old routes and insert new one
             unset($routes[$ri], $routes[$rj]);
+            
+            // Use one of the old keys or a new one
             $routes[$i] = [
                 'nodes' => $newNodes,
                 'cost'  => $cost,
@@ -120,12 +110,10 @@ class ClarkeWrightService
         }
 
         // ---------------------------------------------
-        // STEP 4: Reduce routes if more than vehicles
+        // STEP 4: Reduce routes if > vehicleCount
         // ---------------------------------------------
         while (count($routes) > $vehicleCount) {
-            // Sort by cost ascending
             uasort($routes, fn ($a, $b) => $a['cost'] <=> $b['cost']);
-
             $keys = array_keys($routes);
             $k1   = $keys[0];
             $k2   = $keys[1];
@@ -133,13 +121,10 @@ class ClarkeWrightService
             $r1 = $routes[$k1];
             $r2 = $routes[$k2];
 
-            $nodes1 = $r1['nodes'];
-            $nodes2 = $r2['nodes'];
-
             $try = array_merge(
                 [$depot],
-                array_slice($nodes1, 1, -1),
-                array_slice($nodes2, 1, -1),
+                array_slice($r1['nodes'], 1, -1),
+                array_slice($r2['nodes'], 1, -1),
                 [$depot]
             );
 
@@ -147,93 +132,68 @@ class ClarkeWrightService
 
             if ($cost <= $maxRouteCost) {
                 unset($routes[$k1], $routes[$k2]);
-                $routes[$k1] = [
-                    'nodes' => $try,
-                    'cost'  => $cost,
-                ];
+                $routes[$k1] = ['nodes' => $try, 'cost'  => $cost];
             } else {
                 break;
             }
         }
 
         // ---------------------------------------------
-        // STEP 5: If FEWER routes than vehicles → split big ones
+        // STEP 5: Expand/Split if < vehicleCount
         // ---------------------------------------------
         $routes = array_values($routes);
-
         if (count($routes) < $vehicleCount) {
             $routes = self::expandToVehicleCount($routes, $vehicleCount, $matrix, $maxRouteCost, $depot);
         }
 
-        // If STILL more, hard-cap
+        // Hard cap
         if (count($routes) > $vehicleCount) {
+            // Sort by cost descending (remove most expensive? or keep cheapest? usually keep cheapest)
+            uasort($routes, fn($a,$b) => $a['cost'] <=> $b['cost']);
             $routes = array_slice($routes, 0, $vehicleCount);
         }
 
-        return $routes;
+        return array_values($routes);
     }
 
-    // -------------------------------
-    // Helper: compute route cost
-    // -------------------------------
     private static function computeCost(array $nodes, array $matrix): float
     {
         $cost = 0.0;
         $count = count($nodes);
-
         for ($i = 0; $i < $count - 1; $i++) {
-            $from = $nodes[$i];
-            $to   = $nodes[$i + 1];
-
-            $cost += $matrix[$from][$to];
+            $cost += $matrix[$nodes[$i]][$nodes[$i + 1]];
         }
-
         return $cost;
     }
 
-    // -------------------------------
-    // Helper: expand routes by splitting
-    // -------------------------------
     private static function expandToVehicleCount(
         array $routes,
         int $vehicleCount,
         array $matrix,
         float $maxRouteCost,
-        int $depotIndex = 0
+        int $depotIndex
     ): array {
-        // Keep trying to split the longest route until:
-        // - we reach vehicleCount, or
-        // - all routes have at most 1 customer
+        
         while (count($routes) < $vehicleCount) {
-            // Find route with most customers
-            $maxIdx      = null;
+            $maxIdx = null;
             $maxCustomers = 0;
 
             foreach ($routes as $idx => $r) {
-                // nodes: [0, a, b, c, 0] -> customers = 3
                 $customers = max(count($r['nodes']) - 2, 0);
                 if ($customers > $maxCustomers) {
                     $maxCustomers = $customers;
-                    $maxIdx       = $idx;
+                    $maxIdx = $idx;
                 }
             }
 
-            // Nothing to split (all routes have 0 or 1 customer)
-            if ($maxIdx === null || $maxCustomers <= 1) {
-                break;
-            }
+            if ($maxIdx === null || $maxCustomers <= 1) break;
 
             $route = $routes[$maxIdx];
             $nodes = $route['nodes'];
-
-            // Extract customer indices (skip first/last depot)
             $customers = array_slice($nodes, 1, -1);
-            $totalCust = count($customers);
-
-            $half = intdiv($totalCust, 2);
-            if ($half < 1) {
-                break;
-            }
+            
+            $half = intdiv(count($customers), 2);
+            if ($half < 1) break;
 
             $custA = array_slice($customers, 0, $half);
             $custB = array_slice($customers, $half);
@@ -244,23 +204,23 @@ class ClarkeWrightService
             $costA = self::computeCost($nodesA, $matrix);
             $costB = self::computeCost($nodesB, $matrix);
 
-            // If splitting violates cost constraint, give up
             if ($costA > $maxRouteCost || $costB > $maxRouteCost) {
+                // If we can't split the biggest route without violating constraints, stop trying
                 break;
             }
 
-            // Replace original with A, append B
             unset($routes[$maxIdx]);
+            
             $routes[] = [
                 'nodes' => $nodesA,
                 'cost'  => $costA,
             ];
+            
             $routes[] = [
                 'nodes' => $nodesB,
                 'cost'  => $costB,
-            ];
+            ]; // <--- FIXED: Added closing bracket and semicolon
 
-            // Reindex for next loop
             $routes = array_values($routes);
         }
 

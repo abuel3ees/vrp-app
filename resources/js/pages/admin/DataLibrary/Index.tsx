@@ -1,15 +1,57 @@
 "use client";
-import { usePage } from "@inertiajs/react";
+import { usePage, Head } from "@inertiajs/react";
 import AdminLayout from "@/Layouts/AdminLayout";
+import { useState } from "react";
 
-import { Search, Database, Map, Layers, MapPin, Info } from "lucide-react";
+import { Search, Database, Map, Layers, MapPin, Info, Globe } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+interface RegionData {
+  name: string;
+  general: {
+    DEPOT_X?: number;
+    DEPOT_Y?: number;
+    PIXEL_VALUE?: number;
+  };
+  penalties: {
+    zones?: Record<string, number>;
+    categories?: Record<string, number>;
+  };
+  roadTypes: Record<string, unknown>;
+  counts: {
+    avenues: number;
+    streets: number;
+    paths: number;
+    highways: number;
+    links: number;
+    municipal: number;
+    plazas: number;
+    roundabouts: number;
+    total: number;
+  };
+}
+
+interface PageProps {
+  regions: Record<string, RegionData>;
+  [key: string]: unknown;
+}
 
 export default function DataLibraryIndex() {
-  const { general = {}, penalties = {}, roadTypes = {}, counts = {} } =
-    usePage().props;
+  const { regions = {} } = usePage<PageProps>().props;
+  const regionKeys = Object.keys(regions);
+  const [activeRegion, setActiveRegion] = useState(regionKeys[0] || "amman");
+
+  const currentRegion = regions[activeRegion];
+  const general = currentRegion?.general || {};
+  const penalties = currentRegion?.penalties || {};
+  const roadTypes = currentRegion?.roadTypes || {};
+  const counts = currentRegion?.counts || {
+    avenues: 0, streets: 0, paths: 0, highways: 0, 
+    links: 0, municipal: 0, plazas: 0, roundabouts: 0, total: 0
+  };
 
   // Beginner-friendly descriptions for each dataset
   const descriptions = {
@@ -32,7 +74,8 @@ export default function DataLibraryIndex() {
   };
 
   return (
-    <AdminLayout title="Data Library">
+    <AdminLayout>
+      <Head title="Data Library" />
       <div className="mx-auto pt-4 pb-8 px-4 lg:px-8 max-w-6xl w-full">
 
         {/* Header */}
@@ -48,8 +91,37 @@ export default function DataLibraryIndex() {
           </p>
         </div>
 
+        {/* Region Tabs */}
+        <Tabs value={activeRegion} onValueChange={setActiveRegion} className="mb-6">
+          <TabsList className="bg-gray-900 border border-gray-700">
+            {regionKeys.map((key) => (
+              <TabsTrigger 
+                key={key} 
+                value={key}
+                className="data-[state=active]:bg-orange-500 data-[state=active]:text-white"
+              >
+                <Globe className="h-4 w-4 mr-2" />
+                {regions[key]?.name || key}
+                <span className="ml-2 text-xs opacity-70">
+                  ({regions[key]?.counts?.total || 0} roads)
+                </span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+
         <Card className="p-6">
 
+          {/* Region Header */}
+          <div className="mb-6 pb-4 border-b border-gray-700">
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              <Globe className="h-6 w-6 text-orange-400" />
+              {currentRegion.name || activeRegion} Region
+            </h2>
+            <p className="text-muted-foreground text-sm mt-1">
+              Total roads: <span className="font-bold text-orange-400">{counts.total || 0}</span>
+            </p>
+          </div>
 
           {/* Toolbar */}
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -69,7 +141,7 @@ export default function DataLibraryIndex() {
               title="Avenues"
               description={descriptions.Avenues}
               count={counts.avenues ?? 0}
-              href="/admin/data-library/avenues"
+              href={`/admin/data-library/${activeRegion}/avenues`}
               icon={<Map className="h-6 w-6 text-orange-400" />}
             />
 
@@ -77,7 +149,7 @@ export default function DataLibraryIndex() {
               title="Streets"
               description={descriptions.Streets}
               count={counts.streets ?? 0}
-              href="/admin/data-library/streets"
+              href={`/admin/data-library/${activeRegion}/streets`}
               icon={<MapPin className="h-6 w-6 text-orange-400" />}
             />
 
@@ -85,7 +157,7 @@ export default function DataLibraryIndex() {
               title="Paths"
               description={descriptions.Paths}
               count={counts.paths ?? 0}
-              href="/admin/data-library/paths"
+              href={`/admin/data-library/${activeRegion}/paths`}
               icon={<Map className="h-6 w-6 text-orange-400" />}
             />
 
@@ -93,7 +165,7 @@ export default function DataLibraryIndex() {
               title="Highways"
               description={descriptions.Highways}
               count={counts.highways ?? 0}
-              href="/admin/data-library/highways"
+              href={`/admin/data-library/${activeRegion}/highways`}
               icon={<Layers className="h-6 w-6 text-orange-400" />}
             />
 
@@ -101,7 +173,7 @@ export default function DataLibraryIndex() {
               title="Links"
               description={descriptions.Links}
               count={counts.links ?? 0}
-              href="/admin/data-library/links"
+              href={`/admin/data-library/${activeRegion}/links`}
               icon={<Database className="h-6 w-6 text-orange-400" />}
             />
 
@@ -109,7 +181,7 @@ export default function DataLibraryIndex() {
               title="Municipal Roads"
               description={descriptions["Municipal Roads"]}
               count={counts.municipal ?? 0}
-              href="/admin/data-library/municipal"
+              href={`/admin/data-library/${activeRegion}/municipal`}
               icon={<MapPin className="h-6 w-6 text-orange-400" />}
             />
 
@@ -117,7 +189,7 @@ export default function DataLibraryIndex() {
               title="Plazas"
               description={descriptions.Plazas}
               count={counts.plazas ?? 0}
-              href="/admin/data-library/plazas"
+              href={`/admin/data-library/${activeRegion}/plazas`}
               icon={<Map className="h-6 w-6 text-orange-400" />}
             />
 
@@ -125,7 +197,7 @@ export default function DataLibraryIndex() {
               title="Roundabouts"
               description={descriptions.Roundabouts}
               count={counts.roundabouts ?? 0}
-              href="/admin/data-library/roundabouts"
+              href={`/admin/data-library/${activeRegion}/roundabouts`}
               icon={<Layers className="h-6 w-6 text-orange-400" />}
             />
 
@@ -172,7 +244,15 @@ export default function DataLibraryIndex() {
   );
 }
 
-function DatasetCard({ title, description, count, icon, href }) {
+interface DatasetCardProps {
+  title: string;
+  description: string;
+  count: number;
+  icon: React.ReactNode;
+  href: string;
+}
+
+function DatasetCard({ title, description, count, icon, href }: DatasetCardProps) {
   return (
     <a href={href}>
       <Card className="p-5 hover:bg-gray-800 transition border border-gray-700 cursor-pointer h-full flex flex-col">
@@ -192,7 +272,12 @@ function DatasetCard({ title, description, count, icon, href }) {
   );
 }
 
-function Section({ title, children }) {
+interface SectionProps {
+  title: string;
+  children: React.ReactNode;
+}
+
+function Section({ title, children }: SectionProps) {
   return (
     <div className="mb-12">
       <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
@@ -204,7 +289,12 @@ function Section({ title, children }) {
   );
 }
 
-function InfoBox({ label, value }) {
+interface InfoBoxProps {
+  label: string;
+  value: string | number;
+}
+
+function InfoBox({ label, value }: InfoBoxProps) {
   return (
     <Card className="p-4 bg-gray-900 border border-gray-700 text-sm">
       <strong className="block text-orange-400 mb-1">{label}:</strong>

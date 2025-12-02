@@ -2,18 +2,56 @@
 
 namespace App\Services\VRP;
 
+use SplPriorityQueue;
+
 class DijkstraService
 {
     /**
-     * Compute the shortest path between two nodes.
-     *
-     * @param array $edges     Graph edges: nodeId => [ ['to'=>id, 'weightedCost'=>x], ... ]
-     * @param string $sourceId Starting node ID
-     * @param string $targetId Ending node ID
-     * @return array {
-     *   'cost' => float,
-     *   'path' => array of node IDs
-     * }
+     * Compute shortest paths from source to ALL other nodes.
+     * Returns array: [nodeId => cost]
+     */
+    public static function findAllDistances(array $edges, string $sourceId): array
+    {
+        $dist = [];
+        $visited = [];
+        
+        // Use SplPriorityQueue for O(log V) extractions
+        $queue = new SplPriorityQueue();
+        $queue->setExtractFlags(SplPriorityQueue::EXTR_DATA);
+
+        // We only initialize the source distance; others are implicitly INF
+        $dist[$sourceId] = 0;
+        $queue->insert($sourceId, 0);
+
+        while (!$queue->isEmpty()) {
+            $current = $queue->extract();
+
+            if (isset($visited[$current])) continue;
+            $visited[$current] = true;
+
+            if (!isset($edges[$current])) continue;
+
+            foreach ($edges[$current] as $edge) {
+                $neighbor = $edge['to'];
+                $cost = $edge['weightedCost']; // Using pre-calculated weighted cost
+                
+                // Current known distance to neighbor (default INF)
+                $currentDistToNeighbor = $dist[$neighbor] ?? INF;
+                $newDist = $dist[$current] + $cost;
+
+                if ($newDist < $currentDistToNeighbor) {
+                    $dist[$neighbor] = $newDist;
+                    // Priority is negative because SplPriorityQueue is a Max-Heap
+                    $queue->insert($neighbor, -$newDist);
+                }
+            }
+        }
+
+        return $dist;
+    }
+
+    /**
+     * Standard point-to-point (stops when target found).
      */
     public static function shortestPath(array $edges, string $sourceId, string $targetId): array
     {
@@ -21,15 +59,8 @@ class DijkstraService
         $prev = [];
         $visited = [];
         
-        // Min priority queue (cost, node)
-        $queue = new \SplPriorityQueue();
-        // SplPriorityQueue extracts max by default, so invert priority
-        $queue->setExtractFlags(\SplPriorityQueue::EXTR_DATA);
-
-        // Initialize distances
-        foreach ($edges as $node => $_) {
-            $dist[$node] = INF;
-        }
+        $queue = new SplPriorityQueue();
+        $queue->setExtractFlags(SplPriorityQueue::EXTR_DATA);
 
         $dist[$sourceId] = 0;
         $queue->insert($sourceId, 0);
@@ -37,44 +68,39 @@ class DijkstraService
         while (!$queue->isEmpty()) {
             $current = $queue->extract();
             
+            if ($current === $targetId) break; // Optimization: Stop early
+            
             if (isset($visited[$current])) continue;
             $visited[$current] = true;
-
-            if ($current === $targetId) break;
 
             if (!isset($edges[$current])) continue;
 
             foreach ($edges[$current] as $edge) {
                 $neighbor = $edge['to'];
                 $cost = $edge['weightedCost'];
+                
+                $curD = $dist[$neighbor] ?? INF;
+                $newD = ($dist[$current] ?? INF) + $cost;
 
-                $newDist = $dist[$current] + $cost;
-
-                if ($newDist < $dist[$neighbor]) {
-                    $dist[$neighbor] = $newDist;
+                if ($newD < $curD) {
+                    $dist[$neighbor] = $newD;
                     $prev[$neighbor] = $current;
-
-                    // use negative because SplPriorityQueue is max-heap
-                    $queue->insert($neighbor, -$newDist);
+                    $queue->insert($neighbor, -$newD);
                 }
             }
         }
 
-        // If no path exists
-        if ($dist[$targetId] === INF) {
+        if (!isset($dist[$targetId]) || $dist[$targetId] === INF) {
             return [ 'cost' => INF, 'path' => [] ];
         }
 
-        // Reconstruct path
+        // Reconstruct
         $path = [];
-        $current = $targetId;
-
-        while (isset($prev[$current])) {
-            array_unshift($path, $current);
-            $current = $prev[$current];
+        $curr = $targetId;
+        while (isset($prev[$curr])) {
+            array_unshift($path, $curr);
+            $curr = $prev[$curr];
         }
-
-        // Add the source
         array_unshift($path, $sourceId);
 
         return [

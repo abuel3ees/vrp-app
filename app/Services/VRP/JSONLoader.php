@@ -6,17 +6,25 @@ use Illuminate\Support\Facades\Storage;
 
 class JsonLoader
 {
-    public static function loadRoadFiles(): array
+    public static function loadRoadFiles(string $profile = 'brazil'): array
     {
-        $files = Storage::files('roads');
+        $basePath = "roads/{$profile}";
+        if (!Storage::exists($basePath)) {
+            // Fallback if folder missing
+            $basePath = 'roads/brazil';
+        }
+
+        $files = Storage::files($basePath);
         $roads = [];
 
         foreach ($files as $file) {
-            if (!str_ends_with($file, '.json')) continue;
+            if (!str_ends_with($file, '.json')) {
+                continue;
+            }
 
             $content = json_decode(Storage::get($file), true);
 
-            if (isset($content['roads'])) {
+            if (isset($content['roads']) && is_array($content['roads'])) {
                 foreach ($content['roads'] as $road) {
                     $roads[] = $road;
                 }
@@ -26,36 +34,42 @@ class JsonLoader
         return $roads;
     }
 
-    public static function loadSettings(): array
+    public static function loadSettings(string $profile = 'brazil'): array
     {
-        $path = 'roads/general_settings.json';
+        $path = "roads/{$profile}/general_settings.json";
 
-        if (Storage::exists($path)) {
-            return json_decode(Storage::get($path), true)['general'];
+        if (!Storage::exists($path)) {
+            $path = 'roads/brazil/general_settings.json';
         }
 
-        return [];
+        $data = json_decode(Storage::get($path), true);
+
+        return $data['general'] ?? [];
     }
 
-    public static function loadPenalties(): array
+    public static function loadPenalties(string $profile = 'brazil'): array
     {
-        $path = 'roads/penalties.json';
+        $path = "roads/{$profile}/penalties.json";
 
-        if (Storage::exists($path)) {
-            return json_decode(Storage::get($path), true)['penalties'];
+        if (!Storage::exists($path)) {
+            $path = 'roads/brazil/penalties.json';
         }
 
-        return [];
+        $data = json_decode(Storage::get($path), true);
+
+        return $data['penalties'] ?? [];
     }
 
-    public static function loadRoadTypes(): array
+    public static function loadRoadTypes(string $profile = 'brazil'): array
     {
-        $path = 'roads/road_types.json';
+        $path = "roads/{$profile}/road_types.json";
 
-        if (Storage::exists($path)) {
-            return json_decode(Storage::get($path), true)['roadTypes'];
+        if (!Storage::exists($path)) {
+            $path = 'roads/brazil/road_types.json';
         }
 
-        return [];
+        $data = json_decode(Storage::get($path), true);
+
+        return $data['roadTypes'] ?? [];
     }
 }

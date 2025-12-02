@@ -9,9 +9,26 @@ class DataLibraryController extends Controller
 {
     public function index()
     {
-        // Helper to load JSON safely
-        $loadJson = function ($file) {
-            $path = storage_path("app/roads/{$file}");
+        $regions = ['amman', 'brazil'];
+        $data = [];
+
+        foreach ($regions as $region) {
+            $data[$region] = $this->loadRegionData($region);
+        }
+
+        return Inertia::render('admin/DataLibrary/Index', [
+            'regions' => $data,
+        ]);
+    }
+
+    /**
+     * Load all road data for a specific region
+     */
+    private function loadRegionData(string $region): array
+    {
+        // Helper to load JSON safely for this region
+        $loadJson = function (string $file) use ($region): array {
+            $path = storage_path("app/roads/{$region}/{$file}");
 
             if (!file_exists($path)) return [];
 
@@ -20,7 +37,7 @@ class DataLibraryController extends Controller
         };
 
         // Roads loader (all road files are { "roads": [] })
-        $loadRoads = fn($file) => $loadJson($file)['roads'] ?? [];
+        $loadRoads = fn(string $file): array => $loadJson($file)['roads'] ?? [];
 
         // Load core configs (these have wrapper keys)
         $generalFile   = $loadJson('general_settings.json');
@@ -51,13 +68,17 @@ class DataLibraryController extends Controller
             'municipal'   => count($municipal),
             'plazas'      => count($plazas),
             'roundabouts' => count($roundabouts),
+            'total'       => count($avenues) + count($streets) + count($paths) + 
+                            count($highways) + count($links) + count($municipal) + 
+                            count($plazas) + count($roundabouts),
         ];
 
-        return Inertia::render('admin/DataLibrary/Index', [
+        return [
+            'name'      => ucfirst($region),
             'general'   => $general,
             'penalties' => $penalties,
             'roadTypes' => $roadTypes,
             'counts'    => $counts,
-        ]);
+        ];
     }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useMemo } from "react";
+import React, { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { usePage, Head } from "@inertiajs/react";
 import AdminLayout from "@/Layouts/AdminLayout";
 
@@ -16,23 +16,11 @@ import {
   Truck,
   Route as RouteIcon,
   Sparkles,
+  MapPin,
+  Info,
 } from "lucide-react";
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
-
-// ------------------------------------------
-// GRID → LAT/LNG PROJECTION (Brazil baseline)
-// ------------------------------------------
-const BASE_LAT = -15.78;
-const BASE_LNG = -47.93;
-const SCALE = 0.00005;
-
-function convertPoint(x: number, y: number) {
-  return {
-    lat: BASE_LAT + y * SCALE,
-    lng: BASE_LNG + x * SCALE,
-  };
-}
 
 // ------------------------------------------
 // TYPES
@@ -60,10 +48,12 @@ interface DeliveryNode {
   id: number;
   x: number;
   y: number;
+  street_name?: string | null;
+  road_type?: string | null;
 }
 
 interface Props {
-  instance: { id: number; name: string; category?: string };
+  instance: { id: number; name: string; category?: string | null };
   routes: VehicleRoute[];
   nodes: DeliveryNode[];
 }
@@ -101,7 +91,33 @@ function getRouteQuality(cost: number, avgCost: number) {
 
 export default function RoutesPage() {
   const { instance, routes, nodes } = usePage<Props>().props;
+  
+  // ------------------------------------------
+  // PER-INSTANCE PROJECTION (Brazil vs Amman)
+  // ------------------------------------------
+  const categoryLower = (instance.category ?? "").toLowerCase();
+  const nameLower = instance.name.toLowerCase();
 
+  const isAmmanInstance =
+    categoryLower.includes("amman") || nameLower.includes("amman");
+
+  // Amman (rough center): 31.9539 N, 35.9106 E
+  const BASE_LAT = isAmmanInstance ? 31.9539 : -15.78;
+  const BASE_LNG = isAmmanInstance ? 35.9106 : -47.93;
+
+  // You can tweak SCALE for Jordan if needed (smaller area → smaller SCALE)
+  const SCALE = isAmmanInstance ? 0.00003 : 0.00005;
+
+  const convertPoint = useCallback(
+    (x: number, y: number) => ({
+      lat: BASE_LAT + y * SCALE,
+      lng: BASE_LNG + x * SCALE,
+    }),
+    [BASE_LAT, BASE_LNG, SCALE]
+  );
+  
+
+  
   // ------------------------------------------
   // COLORS & METRICS
   // ------------------------------------------
@@ -109,7 +125,14 @@ export default function RoutesPage() {
     () =>
       routes.map((r, i) => ({
         ...r,
-        color: ["#22c55e", "#0ea5e9", "#f97316", "#a855f7", "#facc15", "#ec4899"][i % 6],
+        color: [
+          "#22c55e",
+          "#0ea5e9",
+          "#f97316",
+          "#a855f7",
+          "#facc15",
+          "#ec4899",
+        ][i % 6],
       })),
     [routes]
   );
@@ -125,6 +148,13 @@ export default function RoutesPage() {
     totalVehicles &&
     coloredRoutes.reduce((s, r) => s + r.deliveries.length, 0) / totalVehicles;
 
+  // quick id → node lookup for labels / inspector
+  const nodeById = useMemo(() => {
+    const m = new Map<number, DeliveryNode>();
+    nodes.forEach((n) => m.set(n.id, n));
+    return m;
+  }, [nodes]);
+
   // ------------------------------------------
   // STEP → LAT/LNG & ROUTES
   // ------------------------------------------
@@ -132,10 +162,11 @@ export default function RoutesPage() {
     () =>
       coloredRoutes.map((r) => ({
         ...r,
+        // project grid steps → lat/lng
         steps: r.steps?.map((p) => convertPoint(p.x, p.y)) || [],
         full_path: r.full_path || [],
       })),
-    [coloredRoutes]
+    [coloredRoutes, convertPoint]
   );
 
   // Per-route metrics (distance, stops, cost)
@@ -198,14 +229,14 @@ export default function RoutesPage() {
   }, [activeRoute, stopsCount, progress]);
 
   const routeQuality =
-    activeRoute != null ? getRouteQuality(activeRoute.cost, avgCost) : getRouteQuality(0, 0);
+    activeRoute != null
+      ? getRouteQuality(activeRoute.cost, avgCost)
+      : getRouteQuality(0, 0);
 
   const selectedNode = useMemo(
     () =>
-      selectedNodeId != null
-        ? nodes.find((n) => n.id === selectedNodeId) || null
-        : null,
-    [selectedNodeId, nodes]
+      selectedNodeId != null ? nodeById.get(selectedNodeId) || null : null,
+    [selectedNodeId, nodeById]
   );
 
   const selectedNodeIndexInRoute = useMemo(
@@ -217,11 +248,8 @@ export default function RoutesPage() {
   );
 
   const selectedNodeLatLng = useMemo(
-    () =>
-      selectedNode
-        ? convertPoint(selectedNode.x, selectedNode.y)
-        : null,
-    [selectedNode]
+    () => (selectedNode ? convertPoint(selectedNode.x, selectedNode.y) : null),
+    [selectedNode, convertPoint]
   );
 
   // Full route line
@@ -233,7 +261,11 @@ export default function RoutesPage() {
   // Distance analytics: total, traveled, remaining
   const activeDistance = useMemo(() => {
     if (!baseLine) {
-      return { total: null as number | null, traveled: null as number | null, remaining: null as number | null };
+      return {
+        total: null as number | null,
+        traveled: null as number | null,
+        remaining: null as number | null,
+      };
     }
     try {
       const total = turf.length(baseLine as any, { units: "kilometers" });
@@ -299,11 +331,15 @@ export default function RoutesPage() {
             type: "Point" as const,
             coordinates: [p.lng, p.lat] as [number, number],
           },
-          properties: { id: n.id },
+          properties: {
+            id: n.id,
+            street_name: n.street_name ?? null,
+            road_type: n.road_type ?? null,
+          },
         };
       }),
     }),
-    [nodes]
+    [nodes, convertPoint]
   );
 
   // All routes ghost layer
@@ -316,7 +352,10 @@ export default function RoutesPage() {
           type: "Feature" as const,
           geometry: {
             type: "LineString" as const,
-            coordinates: r.full_path.map((p) => [p.lng, p.lat]) as [number, number][],
+            coordinates: r.full_path.map((p) => [p.lng, p.lat]) as [
+              number,
+              number
+            ][],
           },
           properties: {
             vehicle_number: r.vehicle_number,
@@ -423,6 +462,29 @@ export default function RoutesPage() {
         },
       });
 
+      // Labels for street names / fallback to node id
+      map.current.addLayer({
+        id: "nodes-label-layer",
+        type: "symbol",
+        source: "nodes",
+        layout: {
+          "text-field": [
+            "coalesce",
+            ["get", "street_name"],
+            ["concat", "Node ", ["to-string", ["get", "id"]]],
+          ],
+          "text-size": 10,
+          "text-offset": [0, 1.1],
+          "text-anchor": "top",
+        },
+        paint: {
+          "text-color": "#e5e7eb",
+          "text-halo-color": "#020617",
+          "text-halo-width": 1.25,
+          "text-opacity": 0.8,
+        },
+      });
+
       // Active nodes
       map.current.addLayer({
         id: "nodes-active-layer",
@@ -453,6 +515,24 @@ export default function RoutesPage() {
         },
       });
 
+      // Cursor
+      map.current.on("mouseenter", "nodes-layer", () => {
+        map.current?.getCanvas().style &&
+          (map.current.getCanvas().style.cursor = "pointer");
+      });
+      map.current.on("mouseleave", "nodes-layer", () => {
+        map.current?.getCanvas().style &&
+          (map.current.getCanvas().style.cursor = "");
+      });
+      map.current.on("mouseenter", "nodes-active-layer", () => {
+        map.current?.getCanvas().style &&
+          (map.current.getCanvas().style.cursor = "pointer");
+      });
+      map.current.on("mouseleave", "nodes-active-layer", () => {
+        map.current?.getCanvas().style &&
+          (map.current.getCanvas().style.cursor = "");
+      });
+
       // All routes ghost layer
       map.current.addSource("routes-all", {
         type: "geojson",
@@ -474,7 +554,8 @@ export default function RoutesPage() {
       map.current.addSource("route-base", {
         type: "geojson",
         data:
-          baseLine || ({
+          baseLine ||
+          ({
             type: "Feature",
             geometry: { type: "LineString", coordinates: [] },
           } as any),
@@ -483,7 +564,8 @@ export default function RoutesPage() {
       map.current.addSource("route-progress", {
         type: "geojson",
         data:
-          partialLine || ({
+          partialLine ||
+          ({
             type: "Feature",
             geometry: { type: "LineString", coordinates: [] },
           } as any),
@@ -568,7 +650,10 @@ export default function RoutesPage() {
 
       // VEHICLE SOURCE
       const first =
-        activeSteps[0] != null ? [activeSteps[0].lng, activeSteps[0].lat] : [BASE_LNG, BASE_LAT];
+        activeSteps[0] != null
+          ? // @ts-expect-error — steps projected to lat/lng
+            [activeSteps[0].lng, activeSteps[0].lat]
+          : [BASE_LNG, BASE_LAT];
 
       const initialVehicleFeature: any = {
         type: "Feature",
@@ -686,29 +771,33 @@ export default function RoutesPage() {
     if (!map.current || !mapLoadedRef.current) return;
 
     const baseSrc = map.current.getSource("route-base") as GeoJSONSource | null;
-    const progSrc = map.current.getSource("route-progress") as GeoJSONSource | null;
+    const progSrc = map.current.getSource(
+      "route-progress"
+    ) as GeoJSONSource | null;
 
     if (baseSrc) {
       baseSrc.setData(
-        baseLine || ({
-          type: "Feature",
-          geometry: {
-            type: "LineString",
-            coordinates: [],
-          },
-        } as any)
+        baseLine ||
+          ({
+            type: "Feature",
+            geometry: {
+              type: "LineString",
+              coordinates: [],
+            },
+          } as any)
       );
     }
 
     if (progSrc) {
       progSrc.setData(
-        partialLine || ({
-          type: "Feature",
-          geometry: {
-            type: "LineString",
-            coordinates: [],
-          },
-        } as any)
+        partialLine ||
+          ({
+            type: "Feature",
+            geometry: {
+              type: "LineString",
+              coordinates: [],
+            },
+          } as any)
       );
     }
 
@@ -745,14 +834,22 @@ export default function RoutesPage() {
           ["get", "id"],
           ["literal", activeIds],
         ]);
-        map.current.setPaintProperty("nodes-active-layer", "circle-opacity", 0.9);
+        map.current.setPaintProperty(
+          "nodes-active-layer",
+          "circle-opacity",
+          0.9
+        );
       } else {
         map.current.setFilter("nodes-active-layer", [
           "in",
           ["get", "id"],
           ["literal", []],
         ]);
-        map.current.setPaintProperty("nodes-active-layer", "circle-opacity", 0.0);
+        map.current.setPaintProperty(
+          "nodes-active-layer",
+          "circle-opacity",
+          0.0
+        );
       }
     }
 
@@ -762,7 +859,9 @@ export default function RoutesPage() {
       const endSrc = map.current.getSource("route-end") as GeoJSONSource;
 
       if (activeSteps.length > 0) {
+        // @ts-expect-error — steps projected to lat/lng
         const start = activeSteps[0];
+        // @ts-expect-error — steps projected to lat/lng
         const end = activeSteps[activeSteps.length - 1];
 
         startSrc.setData({
@@ -840,10 +939,18 @@ export default function RoutesPage() {
 
     if (map.current.getLayer("nodes-hover-layer")) {
       if (hoveredStopId != null) {
-        map.current.setFilter("nodes-hover-layer", ["==", ["get", "id"], hoveredStopId]);
-        map.current.setPaintProperty("nodes-hover-layer", "circle-opacity", 1.0);
+        map.current.setFilter("nodes-hover-layer", [
+          "==",
+          ["get", "id"],
+          hoveredStopId,
+        ]);
+        map.current.setPaintProperty(
+          "nodes-hover-layer",
+          "circle-opacity",
+          1.0
+        );
 
-        const node = nodes.find((n) => n.id === hoveredStopId);
+        const node = nodeById.get(hoveredStopId);
         if (node) {
           const p = convertPoint(node.x, node.y);
           map.current.easeTo({
@@ -853,11 +960,19 @@ export default function RoutesPage() {
           });
         }
       } else {
-        map.current.setFilter("nodes-hover-layer", ["==", ["get", "id"], -999999]);
-        map.current.setPaintProperty("nodes-hover-layer", "circle-opacity", 0.0);
+        map.current.setFilter("nodes-hover-layer", [
+          "==",
+          ["get", "id"],
+          -999999,
+        ]);
+        map.current.setPaintProperty(
+          "nodes-hover-layer",
+          "circle-opacity",
+          0.0
+        );
       }
     }
-  }, [hoveredStopId, nodes]);
+  }, [hoveredStopId, nodeById, convertPoint]);
 
   // Click nodes to select
   useEffect(() => {
@@ -944,7 +1059,9 @@ export default function RoutesPage() {
     const segIndex = Math.min(Math.floor(scaled), totalSegments - 1);
     const t = scaled - segIndex;
 
+    // @ts-expect-error — steps projected to lat/lng
     const start = activeSteps[segIndex];
+    // @ts-expect-error — steps projected to lat/lng
     const end = activeSteps[segIndex + 1];
 
     const currLng = start.lng + (end.lng - start.lng) * t;
@@ -992,7 +1109,9 @@ export default function RoutesPage() {
     const route = activeRoute;
     if (!route || !route.full_path || route.full_path.length < 2) return;
 
-    const coords = route.full_path.map((p) => [p.lng, p.lat] as [number, number]);
+    const coords = route.full_path.map(
+      (p) => [p.lng, p.lat] as [number, number]
+    );
     const lons = coords.map((c) => c[0]);
     const lats = coords.map((c) => c[1]);
     const minLng = Math.min(...lons);
@@ -1048,6 +1167,7 @@ export default function RoutesPage() {
 
   const handleFocusDepot = () => {
     if (!map.current || activeSteps.length === 0) return;
+    // @ts-expect-error — steps projected to lat/lng
     const start = activeSteps[0];
     map.current.easeTo({
       center: [start.lng, start.lat],
@@ -1090,12 +1210,14 @@ export default function RoutesPage() {
             <div className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-full bg-slate-900/80 border border-slate-700/70 text-[11px] text-slate-300 shadow-sm shadow-slate-900/70 backdrop-blur">
               <span className="inline-flex items-center gap-1">
                 <span className="inline-block h-2 w-2 rounded-full bg-emerald-400/90 shadow-[0_0_12px_rgba(74,222,128,0.9)]" />
-                <span className="font-medium uppercase tracking-wide">VRP Instance</span>
+                <span className="font-medium uppercase tracking-wide">
+                  VRP Instance
+                </span>
               </span>
               <span className="h-3 w-px bg-slate-700/80" />
               <span className="flex items-center gap-1 text-slate-400">
                 <MapIcon className="h-3.5 w-3.5" />
-                Brazil test grid
+                {isAmmanInstance ? "Amman street network" : "Brazil test grid"}
               </span>
               {instance.category && (
                 <>
@@ -1120,8 +1242,8 @@ export default function RoutesPage() {
                 </span>
               </h1>
               <p className="text-sm text-slate-400 mt-1">
-                Cinematic route playback over your custom street graph. Watch each vehicle execute
-                its plan in real time.
+                Cinematic route playback over your custom street graph. Watch
+                each vehicle execute its plan in real time.
               </p>
             </div>
           </div>
@@ -1129,27 +1251,45 @@ export default function RoutesPage() {
           <div className="grid grid-cols-3 gap-3 min-w-[280px] max-w-md">
             <div className="rounded-xl border border-slate-800 bg-slate-950/90 px-3 py-2.5 shadow-sm shadow-slate-900/60 transition hover:border-emerald-500/60 hover:shadow-[0_0_18px_rgba(16,185,129,0.35)]">
               <div className="flex items-center justify-between">
-                <p className="text-[11px] uppercase tracking-wide text-slate-400">Vehicles</p>
+                <p className="text-[11px] uppercase tracking-wide text-slate-400">
+                  Vehicles
+                </p>
                 <Truck className="h-3.5 w-3.5 text-slate-500" />
               </div>
-              <p className="text-lg font-semibold text-slate-50 mt-1">{totalVehicles}</p>
-              <p className="text-[11px] text-slate-500 mt-0.5">All assigned & sequenced</p>
+              <p className="text-lg font-semibold text-slate-50 mt-1">
+                {totalVehicles}
+              </p>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                All assigned & sequenced
+              </p>
             </div>
             <div className="rounded-xl border border-slate-800 bg-slate-950/90 px-3 py-2.5 shadow-sm shadow-slate-900/60 transition hover:border-sky-500/60 hover:shadow-[0_0_18px_rgba(56,189,248,0.35)]">
               <div className="flex items-center justify-between">
-                <p className="text-[11px] uppercase tracking-wide text-slate-400">Deliveries</p>
+                <p className="text-[11px] uppercase tracking-wide text-slate-400">
+                  Deliveries
+                </p>
                 <RouteIcon className="h-3.5 w-3.5 text-slate-500" />
               </div>
-              <p className="text-lg font-semibold text-slate-50 mt-1">{totalDeliveries}</p>
-              <p className="text-[11px] text-slate-500 mt-0.5">Across full network</p>
+              <p className="text-lg font-semibold text-slate-50 mt-1">
+                {totalDeliveries}
+              </p>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Across full network
+              </p>
             </div>
             <div className="rounded-xl border border-slate-800 bg-slate-950/90 px-3 py-2.5 shadow-sm shadow-slate-900/60 transition hover:border-fuchsia-500/60 hover:shadow-[0_0_18px_rgba(217,70,239,0.35)]">
               <div className="flex items-center justify-between">
-                <p className="text-[11px] uppercase tracking-wide text-slate-400">Total cost</p>
+                <p className="text-[11px] uppercase tracking-wide text-slate-400">
+                  Total cost
+                </p>
                 <Gauge className="h-3.5 w-3.5 text-slate-500" />
               </div>
-              <p className="text-lg font-semibold text-slate-50 mt-1">{totalCost.toFixed(0)}</p>
-              <p className="text-[11px] text-slate-500 mt-0.5">Weighted road penalties</p>
+              <p className="text-lg font-semibold text-slate-50 mt-1">
+                {totalCost.toFixed(0)}
+              </p>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Weighted road penalties
+              </p>
             </div>
           </div>
         </div>
@@ -1165,7 +1305,9 @@ export default function RoutesPage() {
                 {avgCost.toFixed(1)}
               </p>
             </div>
-            <div className="text-[11px] text-slate-500">Route efficiency indicator</div>
+            <div className="text-[11px] text-slate-500">
+              Route efficiency indicator
+            </div>
           </div>
           <div className="rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2.5 flex items-center justify-between">
             <div>
@@ -1176,7 +1318,9 @@ export default function RoutesPage() {
                 {avgStops ? avgStops.toFixed(1) : "—"}
               </p>
             </div>
-            <div className="text-[11px] text-slate-500">Load balancing across fleet</div>
+            <div className="text-[11px] text-slate-500">
+              Load balancing across fleet
+            </div>
           </div>
           <div className="rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2.5 flex items-center justify-between">
             <div>
@@ -1410,7 +1554,10 @@ export default function RoutesPage() {
                       <span className="text-slate-400">Remaining</span>
                       <span className="text-slate-50">
                         {activeDistance.remaining != null
-                          ? `${Math.max(activeDistance.remaining, 0).toFixed(2)} km`
+                          ? `${Math.max(
+                              activeDistance.remaining,
+                              0
+                            ).toFixed(2)} km`
                           : "—"}
                       </span>
                     </div>
@@ -1500,23 +1647,39 @@ export default function RoutesPage() {
                     Stops (nodes in visit order)
                   </p>
                   <div className="max-h-40 overflow-y-auto pr-1 space-y-1">
-                    {activeRoute.deliveries.map((id, idx) => (
-                      <div
-                        key={`stop-list-${id}-${idx}`}
-                        onMouseEnter={() => setHoveredStopId(id)}
-                        onMouseLeave={() => setHoveredStopId(null)}
-                        onClick={() => setSelectedNodeId(id)}
-                        className="flex items-center justify-between text-[11px] rounded-md px-2 py-1 bg-slate-900/80 hover:bg-slate-800/95 border border-slate-800/80 cursor-pointer transition-colors"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-800 text-[10px] text-slate-300 border border-slate-700">
-                            {idx + 1}
+                    {activeRoute.deliveries.map((id, idx) => {
+                      const node = nodeById.get(id);
+                      const label =
+                        node?.street_name ||
+                        (node?.road_type
+                          ? `${node.road_type} · Node ${id}`
+                          : `Node ${id}`);
+                      return (
+                        <div
+                          key={`stop-list-${id}-${idx}`}
+                          onMouseEnter={() => setHoveredStopId(id)}
+                          onMouseLeave={() => setHoveredStopId(null)}
+                          onClick={() => setSelectedNodeId(id)}
+                          className="flex items-center justify-between text-[11px] rounded-md px-2 py-1 bg-slate-900/80 hover:bg-slate-800/95 border border-slate-800/80 cursor-pointer transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-800 text-[10px] text-slate-300 border border-slate-700">
+                              {idx + 1}
+                            </span>
+                            <div className="flex flex-col">
+                              <span className="text-slate-200">{label}</span>
+                              <span className="text-[10px] text-slate-500">
+                                #{id}
+                              </span>
+                            </div>
+                          </div>
+                          <span className="text-slate-500 flex items-center gap-1">
+                            <Info className="h-3 w-3" />
+                            details
                           </span>
-                          <span className="text-slate-300">Node {id}</span>
                         </div>
-                        <span className="text-slate-500">delivery</span>
-                      </div>
-                    ))}
+                      );
+                    })}
                     {activeRoute.deliveries.length === 0 && (
                       <p className="text-[11px] text-slate-500 italic">
                         This vehicle has no assigned stops.
@@ -1561,7 +1724,9 @@ export default function RoutesPage() {
                         Playback mode
                       </p>
                       <p className="text-[10px] text-slate-400">
-                        Brazil grid · terrain-agnostic
+                        {isAmmanInstance
+                          ? "Amman grid · terrain-agnostic"
+                          : "Brazil grid · terrain-agnostic"}
                       </p>
                     </div>
                   </div>
@@ -1632,10 +1797,27 @@ export default function RoutesPage() {
             {selectedNode && selectedNodeLatLng && (
               <div className="pointer-events-none absolute bottom-4 left-3 z-20">
                 <div className="pointer-events-auto rounded-xl bg-slate-900/90 border border-slate-700 px-3 py-2.5 shadow-lg backdrop-blur-md max-w-xs text-xs space-y-1.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-medium text-slate-100">
-                      Node {selectedNode.id}
-                    </span>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-800 border border-slate-600">
+                          <MapPin className="h-3.5 w-3.5 text-emerald-300" />
+                        </span>
+                        <div className="flex flex-col">
+                          <span className="text-[11px] font-medium text-slate-100">
+                            {selectedNode.street_name
+                              ? selectedNode.street_name
+                              : `Node ${selectedNode.id}`}
+                          </span>
+                          <span className="text-[10px] text-slate-500">
+                            ID #{selectedNode.id}
+                            {selectedNode.road_type
+                              ? ` · ${selectedNode.road_type}`
+                              : ""}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                     <button
                       type="button"
                       onClick={() => setSelectedNodeId(null)}
@@ -1644,6 +1826,7 @@ export default function RoutesPage() {
                       Clear
                     </button>
                   </div>
+
                   <p className="text-[11px] text-slate-400">
                     Coordinates:{" "}
                     <span className="text-slate-200">
@@ -1651,6 +1834,7 @@ export default function RoutesPage() {
                       {selectedNodeLatLng.lng.toFixed(5)}°
                     </span>
                   </p>
+
                   {selectedNodeIndexInRoute >= 0 && (
                     <p className="text-[11px] text-slate-400">
                       Part of vehicle{" "}
@@ -1663,16 +1847,18 @@ export default function RoutesPage() {
                       </span>
                     </p>
                   )}
+
                   <div className="flex items-center justify-between pt-1">
                     <button
                       type="button"
                       onClick={handleFocusSelectedNode}
-                      className="px-2 py-0.5 rounded-full bg-slate-800 text-[11px] text-slate-100 hover:bg-slate-700"
+                      className="px-2 py-0.5 rounded-full bg-slate-800 text-[11px] text-slate-100 hover:bg-slate-700 inline-flex items-center gap-1"
                     >
+                      <MapPin className="h-3 w-3" />
                       Focus node
                     </button>
                     <span className="text-[10px] text-slate-500">
-                      Click any node on map to update
+                      Click any node on map to inspect
                     </span>
                   </div>
                 </div>
@@ -1789,8 +1975,8 @@ export default function RoutesPage() {
                     {playing ? "Playing" : "Paused"}
                   </span>
                   <span className="text-[10px] text-slate-500">
-                    {activeRoute?.deliveries.length ?? 0} stops in route · Space = play/pause ·
-                    Autoplay {autoplayFleet ? "ON" : "OFF"}
+                    {activeRoute?.deliveries.length ?? 0} stops in route · Space =
+                    play/pause · Autoplay {autoplayFleet ? "ON" : "OFF"}
                   </span>
                 </div>
               </div>

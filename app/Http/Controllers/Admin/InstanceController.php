@@ -5,18 +5,34 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Instance;
 use App\Models\VehicleRoute;
+use App\Models\Vehicle;
+use App\Models\Delivery;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Spatie\QueryBuilder\QueryBuilder;
 use Spatie\QueryBuilder\AllowedFilter;
 
-// VRP services
+// VRP Services
 use App\Services\VRP\JsonLoader;
 use App\Services\VRP\VRPSolverService;
 use App\Services\DeliveryGeneratorService;
 
 class InstanceController extends Controller
 {
+    /**
+     * Helper to decide which map profile to use.
+     */
+    private function resolveProfile(Instance $instance): string
+    {
+        $category = strtolower($instance->category ?? '');
+
+        if (str_starts_with($category, 'amman')) {
+            return 'amman';
+        }
+
+        return 'brazil';
+    }
+    
     // --------------------------------------------
     // INDEX (List Instances)
     // --------------------------------------------
@@ -27,7 +43,8 @@ class InstanceController extends Controller
                 AllowedFilter::partial('name'),
                 AllowedFilter::partial('category'),
             ])
-            ->allowedSorts(['id', 'name', 'category'])
+            ->defaultSort('-created_at') // Standard Spatie sort for "Newest first"
+            ->allowedSorts(['id', 'name', 'category', 'created_at'])
             ->paginate(15)
             ->appends(request()->query());
 
@@ -48,21 +65,37 @@ class InstanceController extends Controller
     }
 
     // --------------------------------------------
-    // RUN GENERATION VIA API (JSON RETURN)
+    // CREATE NEW INSTANCE
     // --------------------------------------------
-    public function run($id)
+    public function store(Request $request)
     {
-        $instance = Instance::findOrFail($id);
-
-        $generator = app(DeliveryGeneratorService::class);
-
-        $deliveries = $generator->generateForInstance($instance);
-
-        return response()->json([
-            'instance' => $instance,
-            'generated_count' => count($deliveries),
-            'deliveries' => $deliveries,
+        $data = $request->validate([
+            'name'               => 'required|string|max:255',
+            'category'           => 'required|string|max:255',
+            'delivery_points'    => 'required|integer|min:1|max:10000',
+            'number_of_vehicles' => 'required|integer|min:1|max:100',
         ]);
+
+        $data['random_seed'] = rand(1, 999999);
+
+        $instance = Instance::create($data);
+
+        // Auto-create vehicle placeholders
+        $vehicles = [];
+        $now = now();
+        for ($i = 1; $i <= $instance->number_of_vehicles; $i++) {
+            $vehicles[] = [
+                'instance_id' => $instance->id,
+                'name'        => "Vehicle $i",
+                'created_at'  => $now,
+                'updated_at'  => $now,
+            ];
+        }
+        Vehicle::insert($vehicles);
+
+        return redirect()
+            ->route('instances.show', $instance->id)
+            ->with('success', 'Instance created successfully!');
     }
 
     // --------------------------------------------
@@ -70,39 +103,14 @@ class InstanceController extends Controller
     // --------------------------------------------
     public function generate(Instance $instance)
     {
-        $generator = app(DeliveryGeneratorService::class);
-        $generator->generateForInstance($instance);
+        try {
+            $generator = app(DeliveryGeneratorService::class);
+            $count = count($generator->generateForInstance($instance));
 
-        return back()->with('success', 'Deliveries generated!');
-    }
-
-    // --------------------------------------------
-    // CREATE NEW INSTANCE
-    // --------------------------------------------
-    public function store(Request $request)
-    {
-        $data = $request->validate([
-            'name'               => 'required|string',
-            'category'           => 'required|string',
-            'delivery_points'    => 'required|integer|min:1',
-            'number_of_vehicles' => 'required|integer|min:1',
-        ]);
-
-        $data['random_seed'] = rand(1, 999999);
-
-        $instance = Instance::create($data);
-
-        // Auto-create vehicles (optional)
-        for ($i = 1; $i <= $instance->number_of_vehicles; $i++) {
-            \App\Models\Vehicle::create([
-                'instance_id' => $instance->id,
-                'name'        => "Vehicle $i",
-            ]);
+            return back()->with('success', "Success! {$count} deliveries generated.");
+        } catch (\Exception $e) {
+            return back()->with('error', 'Generation Failed: ' . $e->getMessage());
         }
-
-        return redirect()
-            ->route('instances.show', $instance->id)
-            ->with('success', 'Instance created with vehicles!');
     }
 
     // --------------------------------------------
@@ -110,48 +118,101 @@ class InstanceController extends Controller
     // --------------------------------------------
     public function solve(Instance $instance)
     {
-        $solver = app(VRPSolverService::class);
+        // Increase time limit for large calculations
+        set_time_limit(600);
 
-        // Solve the VRP and return full vehicle route structures
-        $routes = $solver->solve($instance);
+        try {
+            $profile = $this->resolveProfile($instance);
+            
+            $solver = app(VRPSolverService::class);
+            $routes = $solver->solve($instance, $profile);
 
-        // Optional: store full solution JSON in instance
-        $instance->solution = json_encode($routes);
-        $instance->save();
+            // Optional: Store summary in JSON
+            $instance->solution = json_encode($routes);
+            $instance->save();
 
-        return redirect()
-            ->route('instances.routes', $instance->id)
-            ->with('success', 'Routes solved!');
+            return redirect()
+                ->route('instances.routes', $instance->id)
+                ->with('success', 'VRP Solved! Routes generated successfully.');
+
+        } catch (\Exception $e) {
+            // Log the error for debugging
+            \Illuminate\Support\Facades\Log::error("VRP Solve Error: " . $e->getMessage());
+            
+            return back()->with('error', 'Solver Error: ' . $e->getMessage());
+        }
     }
 
     // --------------------------------------------
     // VRP SOLUTION VIEWER PAGE (ANIMATED ROUTES)
     // --------------------------------------------
-public function showRoutes($id)
-{
-    $instance = Instance::findOrFail($id);
+    public function showRoutes($id)
+    {
+        $instance = Instance::findOrFail($id);
 
-    $routes = VehicleRoute::where('instance_id', $id)->get();
-    $deliveries = \App\Models\Delivery::where('instance_id', $id)->get(['id','x','y']);
+        // Eager load for performance if needed, though usually not needed here
+        $routes = VehicleRoute::where('instance_id', $id)
+            ->orderBy('vehicle_number')
+            ->get();
+            
+        $deliveries = Delivery::where('instance_id', $id)
+            ->get(['id', 'x', 'y', 'customer_name', 'address']);
 
-    return Inertia::render('admin/Instance/Routes', [
-        'instance' => $instance,
-        'routes'   => $routes,
-        'nodes'    => $deliveries,   // ✔ PASS REAL NODES
-    ]);
-}
+        return Inertia::render('admin/Instance/Routes', [
+            'instance' => $instance,
+            'routes'   => $routes,
+            'nodes'    => $deliveries,
+        ]);
+    }
 
     // --------------------------------------------
     // ROAD NETWORK VIEWER PAGE (RAW ROAD GRAPH)
     // --------------------------------------------
     public function showRoadNetwork($id)
     {
+        $instance = Instance::findOrFail($id);
+        $profile  = $this->resolveProfile($instance);
+
         return Inertia::render('admin/Instance/RoadNetwork', [
-            'instanceId' => $id,
-            'roads'      => JsonLoader::loadRoadFiles(),
-            'settings'   => JsonLoader::loadSettings(),
-            'penalties'  => JsonLoader::loadPenalties(),
-            'roadTypes'  => JsonLoader::loadRoadTypes(),
+            'instance' => $instance,
+            'profile'  => $profile,
+            'roads'    => JsonLoader::loadRoadFiles($profile),
+            'settings' => JsonLoader::loadSettings($profile),
+            'penalties'=> JsonLoader::loadPenalties($profile),
+            'roadTypes'=> JsonLoader::loadRoadTypes($profile),
         ]);
+    }
+
+    // --------------------------------------------
+    // API: RUN GENERATION (JSON RETURN)
+    // --------------------------------------------
+    public function run($id)
+    {
+        try {
+            $instance = Instance::findOrFail($id);
+            $generator = app(DeliveryGeneratorService::class);
+            $deliveries = $generator->generateForInstance($instance);
+
+            return response()->json([
+                'success' => true,
+                'instance' => $instance,
+                'generated_count' => count($deliveries),
+                'deliveries' => $deliveries,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function destroy(Instance $instance)
+    {
+        $instance->delete();
+
+        return redirect()
+            ->route('instances.index')
+            ->with('success', 'Instance deleted!');
     }
 }

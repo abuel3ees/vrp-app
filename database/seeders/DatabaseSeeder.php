@@ -5,7 +5,8 @@ namespace Database\Seeders;
 use App\Models\User;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-
+use Database\Seeders\JordanInstancesSeeder;
+use Database\Seeders\InstancesSeeder;
 class DatabaseSeeder extends Seeder
 {
     /**
@@ -13,13 +14,17 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        $this->call([
+            JordanInstancesSeeder::class,
+            InstancesSeeder::class,
+        ]);
 
         User::firstOrCreate(
-            ['email' => 'test@example.com'],
+            ['email' => 'a@a.com'],
             [
-                'name' => 'Test User',
-                'password' => 'password',
+                'first_name' => 'Test User',
+                'last_name' => 'Admin',
+                'password' => bcrypt('12345678'),
                 'email_verified_at' => now(),
             ]
         );

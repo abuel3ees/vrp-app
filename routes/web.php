@@ -29,6 +29,28 @@ Route::get('/debug-roads', function () {
 });
 
 Route::middleware(['auth'])->prefix('admin')->group(function () {
+    Route::get('/debug-graph', function () {
+    // 1. Force load the Amman profile
+    $profile = 'amman';
+    $roads = \App\Services\VRP\JsonLoader::loadRoadFiles($profile);
+    
+    // 2. Build the graph
+    $builder = new \App\Services\VRP\GraphBuilder(1.0, [], []);
+    $graph = $builder->build($roads);
+    
+    // 3. Dump the first 5 nodes and edges
+    $sampleNodes = array_slice($graph['nodes'], 0, 5);
+    $sampleEdgeKey = array_key_first($graph['edges']);
+    $sampleEdges = $graph['edges'][$sampleEdgeKey] ?? [];
+
+    dd([
+        'total_nodes' => count($graph['nodes']),
+        'total_edges' => count($graph['edges']),
+        'sample_nodes' => $sampleNodes,
+        'sample_edges_from_first_node' => $sampleEdges,
+        'distance_test' => 'If sample_edges cost is 0, your coordinates are merging.',
+    ]);
+});
     Route::get('/dashboard', [App\Http\Controllers\Admin\DashboardController::class, 'index'])
         ->name('admin.dashboard');
     Route::resource('users', UserController::class);
