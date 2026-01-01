@@ -121,22 +121,21 @@ function RouteSolvingOverlay({ instance }: { instance: Instance }) {
         </div>
       </div>
 
-      {/* tiny keyframes hint: Tailwind will just inline this */}
-      <style jsx>{`
+      {/* Keyframes for progress animation - using inline style tag */}
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes progressSlide {
-          0% {
-            transform: translateX(-60%);
-          }
-          50% {
-            transform: translateX(10%);
-          }
-          100% {
-            transform: translateX(120%);
-          }
+          0% { transform: translateX(-60%); }
+          50% { transform: translateX(10%); }
+          100% { transform: translateX(120%); }
         }
-      `}</style>
+      `}} />
     </div>
   );
+}
+
+interface PageProps {
+  instance: Instance;
+  [key: string]: unknown;
 }
 
 export default function InstanceShow() {
@@ -153,15 +152,11 @@ export default function InstanceShow() {
     setIsSolving(true);
     router.get(`/admin/instances/${instance.id}/solve`, {
       preserveScroll: true,
-      onFinish: () => {
-        // If the server redirects to another page, this component will unmount anyway.
-        setIsSolving(false);
-      },
     });
   };
 
   return (
-    <AdminLayout title={`Instance #${instance.id}`}>
+    <AdminLayout>
       {/* fancy overlay when solving */}
       {isSolving && <RouteSolvingOverlay instance={instance} />}
 

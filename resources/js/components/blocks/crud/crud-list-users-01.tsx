@@ -121,7 +121,7 @@ export default function UsersIndex() {
           {/* Bulk Actions */}
           {selectedUsers.length > 0 && (
             <div className="bg-muted p-3 rounded-md mb-4 flex items-center justify-between">
-              <span className="text-sm font-medium">
+              <span className="text-sm font-mum">
                 {selectedUsers.length} user
                 {selectedUsers.length !== 1 ? "s" : ""} selected
               </span>

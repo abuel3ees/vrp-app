@@ -11,6 +11,7 @@ import {
   IconSettings,
   IconHelp,
   IconChevronDown,
+  IconCpu, // <--- Optimization Icon
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -26,13 +27,13 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { Link, usePage } from "@inertiajs/react"
+import { Link } from "@inertiajs/react"
 
 export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
-  const current = usePage().url
-
+  // Updated Navigation Items
   const navMain = [
     { title: "Dashboard", url: "/admin/dashboard", icon: IconDashboard },
+    { title: "Optimize", url: "/admin/optimize", icon: IconCpu }, // <--- Points to the new page
     { title: "Drivers", url: "/admin/drivers", icon: IconUsers },
     { title: "Vehicles", url: "/admin/vehicles", icon: IconTruck },
     { title: "Deliveries", url: "/admin/deliveries", icon: IconMap2 },
@@ -63,12 +64,12 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-        <SidebarMenuButton asChild>
-          <Link href="/">
-            <IconDashboard />
-            <span className="text-base font-semibold">VRP Solver</span>
-          </Link>
-        </SidebarMenuButton>
+            <SidebarMenuButton asChild>
+              <Link href="/">
+                <IconDashboard />
+                <span className="text-base font-semibold">VRP Solver</span>
+              </Link>
+            </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>

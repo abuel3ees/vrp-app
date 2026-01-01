@@ -1,9 +1,27 @@
-import AdminLayout from "@/layouts/AdminLayout"
+import AdminLayout from "@/Layouts/AdminLayout"
 import { Link } from "@inertiajs/react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { MapContainer, TileLayer, Marker, Polyline } from "react-leaflet"
 import L from "leaflet"
+
+interface Delivery {
+  id: number;
+  lat: number;
+  lng: number;
+  customer_name: string;
+  address: string;
+}
+
+interface RouteData {
+  id: number;
+  vehicle?: { plate_number: string };
+  deliveries: Delivery[];
+}
+
+interface ShowProps {
+  route: RouteData;
+}
 
 const icon = new L.Icon({
   iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
@@ -11,9 +29,9 @@ const icon = new L.Icon({
   iconAnchor: [12, 41],
 })
 
-export default function Show({ route }: any) {
+export default function Show({ route }: ShowProps) {
   // deliveries are already sorted by pivot.sequence
-  const points = route.deliveries.map((d: any) => [d.lat, d.lng])
+  const points: [number, number][] = route.deliveries.map((d) => [d.lat, d.lng])
 
   return (
     <AdminLayout>
@@ -39,7 +57,7 @@ export default function Show({ route }: any) {
         <Card className="p-4 space-y-3">
           <h2 className="font-semibold text-lg mb-2">Delivery Order</h2>
 
-          {route.deliveries.map((d: any, index: number) => (
+          {route.deliveries.map((d, index) => (
             <div
               key={d.id}
               className="p-3 bg-muted rounded-md flex justify-between"
@@ -63,7 +81,7 @@ export default function Show({ route }: any) {
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
             {/* Markers in order */}
-            {route.deliveries.map((d: any, index: number) => (
+            {route.deliveries.map((d) => (
               <Marker
                 key={d.id}
                 position={[d.lat, d.lng]}

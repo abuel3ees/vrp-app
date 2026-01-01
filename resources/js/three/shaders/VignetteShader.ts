@@ -5,7 +5,13 @@
 
 import * as THREE from "three"
 
-export const VignetteShader: THREE.Shader = {
+interface ShaderDefinition {
+  uniforms: { [uniform: string]: THREE.IUniform };
+  vertexShader: string;
+  fragmentShader: string;
+}
+
+export const VignetteShader: ShaderDefinition = {
   uniforms: {
     tDiffuse: { value: null }, // main scene texture
     darkness: { value: 1.0 }, // how strong the vignette fades

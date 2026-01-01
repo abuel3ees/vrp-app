@@ -1,4 +1,4 @@
-import AdminLayout from "@/layouts/AdminLayout"
+import AdminLayout from "@/Layouts/AdminLayout"
 import { useForm } from "@inertiajs/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"

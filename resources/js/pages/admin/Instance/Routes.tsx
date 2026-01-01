@@ -217,8 +217,8 @@ export default function RoutesPage() {
   const [autoplayFleet, setAutoplayFleet] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
 
-  const activeFullPath = activeRoute?.full_path || [];
-  const activeSteps = activeRoute?.steps || [];
+  const activeFullPath = useMemo(() => activeRoute?.full_path || [], [activeRoute]);
+  const activeSteps = useMemo(() => activeRoute?.steps || [], [activeRoute]);
   const hasRoute = activeSteps.length >= 2;
 
   const stopsCount = activeRoute?.deliveries.length ?? 0;

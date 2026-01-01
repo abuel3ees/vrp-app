@@ -53,7 +53,7 @@ export function NavMain({
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
-        </SidebarMenu>
+      </SidebarMenu>
 
       </SidebarGroupContent>
     </SidebarGroup>

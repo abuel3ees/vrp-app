@@ -1,4 +1,4 @@
-import AdminLayout from "@/layouts/AdminLayout"
+import AdminLayout from "@/Layouts/AdminLayout"
 import { Link } from "@inertiajs/react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
