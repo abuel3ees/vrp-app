@@ -2,19 +2,21 @@ import { motion } from "framer-motion";
 import React, { useMemo } from "react";
 
 export const EntanglementGraph = () => {
-  // Simulate IBM Eagle Topology (subset)
-  const nodes = Array.from({ length: 12 }).map((_, i) => ({ id: i }));
-  const edges = [
-    [0, 1], [1, 2], [1, 3], [3, 5], [4, 5], [5, 6],
-    [6, 7], [7, 8], [6, 9], [9, 10], [10, 11]
-  ];
-
-  // Simple layout logic (hexagonal-ish)
-  const positions = useMemo(() => {
-    return nodes.map((_, i) => ({
-      x: 50 + Math.cos(i * 0.5) * 35 + (i % 2 === 0 ? 5 : -5),
-      y: 50 + Math.sin(i * 0.5) * 35
+  // Define nodes and edges inside useMemo to ensure stability
+  const { nodes, edges, positions } = useMemo(() => {
+    const n = Array.from({ length: 12 }).map((_, i) => ({ id: i }));
+    const e = [
+        [0, 1], [1, 2], [1, 3], [3, 5], [4, 5], [5, 6],
+        [6, 7], [7, 8], [6, 9], [9, 10], [10, 11]
+    ];
+    
+    // Calculate positions once
+    const p = n.map((_, i) => ({
+      x: 50 + Math.cos(i * 0.55) * 35 + (i % 2 === 0 ? 5 : -5),
+      y: 50 + Math.sin(i * 0.55) * 35
     }));
+
+    return { nodes: n, edges: e, positions: p };
   }, []);
 
   return (
@@ -30,41 +32,47 @@ export const EntanglementGraph = () => {
         </defs>
 
         {/* Edges */}
-        {edges.map(([s, t], i) => (
-          <motion.line
-            key={`e-${i}`}
-            x1={positions[s].x}
-            y1={positions[s].y}
-            x2={positions[t].x}
-            y2={positions[t].y}
-            stroke="url(#edgeGrad)"
-            strokeWidth="1"
-            initial={{ pathLength: 0, opacity: 0 }}
-            animate={{ pathLength: 1, opacity: 1 }}
-            transition={{ duration: 1.5, delay: i * 0.1 }}
-          />
-        ))}
+        {edges.map(([s, t], i) => {
+            const start = positions[s];
+            const end = positions[t];
+            // Safety check to prevent cx="undefined" crash
+            if (!start || !end) return null;
 
-        {/* Active Entanglement Pulses */}
-        {edges.map(([s, t], i) => (
-          <motion.circle
-            key={`p-${i}`}
-            r="1.5"
-            fill="#fff"
-            initial={{ offsetDistance: "0%" }}
-            animate={{ 
-              cx: [positions[s].x, positions[t].x],
-              cy: [positions[s].y, positions[t].y],
-              opacity: [0, 1, 0]
-            }}
-            transition={{ 
-              duration: 2, 
-              repeat: Infinity, 
-              ease: "linear",
-              delay: Math.random() * 2 
-            }}
-          />
-        ))}
+            return (
+              <React.Fragment key={`edge-group-${i}`}>
+                  {/* The Line */}
+                  <motion.line
+                    x1={start.x}
+                    y1={start.y}
+                    x2={end.x}
+                    y2={end.y}
+                    stroke="url(#edgeGrad)"
+                    strokeWidth="1"
+                    initial={{ pathLength: 0, opacity: 0 }}
+                    animate={{ pathLength: 1, opacity: 1 }}
+                    transition={{ duration: 1.5, delay: i * 0.1 }}
+                  />
+                  
+                  {/* The Pulse (Particle) */}
+                  <motion.circle
+                    r="1.5"
+                    fill="#fff"
+                    initial={{ cx: start.x, cy: start.y, opacity: 0 }}
+                    animate={{ 
+                      cx: [start.x, end.x],
+                      cy: [start.y, end.y],
+                      opacity: [0, 1, 0]
+                    }}
+                    transition={{ 
+                      duration: 2, 
+                      repeat: Infinity, 
+                      ease: "linear",
+                      delay: Math.random() * 2 
+                    }}
+                  />
+              </React.Fragment>
+            );
+        })}
 
         {/* Nodes */}
         {nodes.map((n, i) => (

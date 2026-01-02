@@ -53,14 +53,7 @@ if ($rawOut === '') {
 
 $output = json_decode($rawOut, true);
 
-if (!isset($output['status']) || $output['status'] === 'error') {
-    dd([
-        'PHP_Status' => 'Falling back to greedy because:',
-        'Python_Output' => $output,
-        'Raw_Output' => $rawOut,
-        'Raw_Error_Stream' => $rawErr
-    ]);
-}
+
 
 if (json_last_error() !== JSON_ERROR_NONE) {
     throw new \RuntimeException(

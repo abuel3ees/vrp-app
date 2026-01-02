@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Copy, Check } from "lucide-react";
-import { Button } from "@/Components/ui/button";
+import { Button } from "@/components/ui/button";
 
 interface CodeBlockProps {
   code: string;
@@ -30,12 +30,12 @@ export const CodeBlockHighlighter = ({ code, language = "python" }: CodeBlockPro
 
       {/* Code Area */}
       <div className="p-4 overflow-y-auto flex-1 custom-scrollbar">
-        <pre className="text-slate-300 leading-relaxed font-mono text-xs md:text-sm">
+        <pre className="text-slate-300 leading-relaxed font-mono text-xs md:text-sm whitespace-pre">
           <code>
             {code.split('\n').map((line, i) => (
               <div key={i} className="table-row">
-                <span className="table-cell select-none text-slate-700 text-right pr-4 w-8">{i + 1}</span>
-                <span className="table-cell" dangerouslySetInnerHTML={{ __html: highlightSyntax(line) }} />
+                <span className="table-cell select-none text-slate-700 text-right pr-4 w-8 border-r border-white/5 mr-4">{i + 1}</span>
+                <span className="table-cell pl-4" dangerouslySetInnerHTML={{ __html: highlightSyntax(line) }} />
               </div>
             ))}
           </code>
@@ -55,14 +55,50 @@ export const CodeBlockHighlighter = ({ code, language = "python" }: CodeBlockPro
   );
 };
 
-// Simple regex-based syntax highlighter for the demo
+// ROBUST SYNTAX HIGHLIGHTER (Placeholder Strategy)
 const highlightSyntax = (line: string) => {
-  let processed = line
-    .replace(/(import|from|def|class|return|if|else|for|in|while|try|except)/g, '<span class="text-purple-400 font-bold">$1</span>')
-    .replace(/(print|range|len|enumerate|super|QuantumCircuit|TwoLocal|ZZFeatureMap)/g, '<span class="text-blue-400">$1</span>')
-    .replace(/('.*?'|".*?")/g, '<span class="text-green-400">$1</span>')
-    .replace(/(#.*)/g, '<span class="text-slate-500 italic">$1</span>')
-    .replace(/(\d+)/g, '<span class="text-orange-400">$1</span>')
-    .replace(/(self|cls)/g, '<span class="text-red-400 italic">$1</span>');
+  const placeholders: string[] = [];
+  
+  // Helper to store a safe placeholder
+  const store = (html: string) => {
+    placeholders.push(html);
+    return `__TOKEN_${placeholders.length - 1}__`;
+  };
+
+  // 1. Extract Strings (Green) to prevent matching keywords inside them
+  let processed = line.replace(/('.*?'|".*?")/g, (match) => 
+    store(`<span class="text-green-400">${match}</span>`)
+  );
+
+  // 2. Extract Comments (Grey)
+  processed = processed.replace(/(#.*)/g, (match) => 
+    store(`<span class="text-slate-500 italic">${match}</span>`)
+  );
+
+  // 3. Keywords (Purple) - using Word Boundaries \b
+  processed = processed.replace(/\b(import|from|def|class|return|if|else|for|in|while|try|except|with|as|pass|raise|lambda)\b/g, (match) => 
+    store(`<span class="text-purple-400 font-bold">${match}</span>`)
+  );
+
+  // 4. Built-ins & Libs (Blue)
+  processed = processed.replace(/\b(print|range|len|enumerate|super|open|int|str|float|list|dict|set|json|sys|os|numpy|qiskit|ortools|pywrapcp|routing_enums_pb2)\b/g, (match) => 
+    store(`<span class="text-blue-400">${match}</span>`)
+  );
+
+  // 5. Numbers (Orange)
+  processed = processed.replace(/\b(\d+)\b/g, (match) => 
+    store(`<span class="text-orange-400">${match}</span>`)
+  );
+
+  // 6. Self/Cls (Red)
+  processed = processed.replace(/\b(self|cls)\b/g, (match) => 
+    store(`<span class="text-red-400 italic">${match}</span>`)
+  );
+
+  // 7. Restore Placeholders (Reverse order not strictly necessary but good practice)
+  placeholders.forEach((html, index) => {
+    processed = processed.replace(`__TOKEN_${index}__`, html);
+  });
+
   return processed;
 };
