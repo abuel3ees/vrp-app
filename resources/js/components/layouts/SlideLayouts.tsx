@@ -259,5 +259,5 @@ export const NotebookLayout = ({ slide }: { slide: SlideData }) => {
                 </div>
             </div>
         </div>
-    );
+    );  
 };

@@ -1,58 +1,43 @@
-import { motion } from "framer-motion";
-import React from "react";
+import React from 'react';
 
 export const EnergyLandscape = () => {
   return (
-    <div className="relative w-full h-[300px] lg:h-[400px] bg-slate-900 rounded-xl border border-slate-700 overflow-hidden flex items-end justify-center shadow-2xl">
-      {/* Grid Background */}
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px]" />
-      
-      <svg className="w-full h-full absolute bottom-0 z-10" viewBox="0 0 400 200" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="landscapeGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#a855f7" stopOpacity="0.4" />
-            <stop offset="100%" stopColor="#a855f7" stopOpacity="0" />
-          </linearGradient>
-        </defs>
+    <div className="relative w-full aspect-video perspective-1000 bg-slate-900 rounded-xl border border-white/10 overflow-hidden flex items-center justify-center shadow-2xl">
         
-        {/* The Mountain Path (Double Well) */}
-        <path 
-            d="M0,50 C80,50 100,180 140,150 C180,120 200,10 260,10 C320,10 340,180 370,180 L400,180 L400,200 L0,200 Z" 
-            fill="url(#landscapeGrad)" 
-            stroke="#a855f7" 
-            strokeWidth="2"
-        />
+        {/* 1. 3D Grid Floor (Pure CSS) */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:40px_40px] [transform:rotateX(60deg)] origin-bottom opacity-30" />
         
-        <text x="140" y="175" fill="white" fontSize="8" textAnchor="middle" className="font-mono">Local Minima</text>
-        <text x="370" y="195" fill="#22d3ee" fontSize="8" textAnchor="middle" className="font-mono font-bold">Global Minima</text>
-      </svg>
+        {/* 2. The Math Function Graph */}
+        <svg viewBox="0 0 200 100" className="w-[90%] h-[70%] z-10 drop-shadow-[0_0_10px_rgba(168,85,247,0.4)]">
+            {/* The Hill and Valley Path */}
+            <path id="energyPath" d="M0,80 Q20,20 40,80 T80,80 T120,20 T160,90 T200,50" fill="none" stroke="url(#gradient)" strokeWidth="2" strokeLinecap="round" />
+            
+            <defs>
+                <linearGradient id="gradient" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#3b82f6" />
+                    <stop offset="100%" stopColor="#a855f7" />
+                </linearGradient>
+            </defs>
+            
+            {/* 3. Classical Ball (Stuck in local minima) */}
+            <circle cx="40" cy="80" r="3" fill="#ef4444" className="animate-bounce">
+                <animate attributeName="opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite" />
+            </circle>
+            
+            {/* 4. Quantum Ball (Tunneling through the hill) */}
+            <circle r="4" fill="#a855f7" className="shadow-[0_0_15px_purple]">
+                 {/* This animates the ball along the path defined above */}
+                 <animateMotion dur="4s" repeatCount="indefinite" path="M0,60 Q20,0 40,60 T80,60 T120,0 T160,70 T200,30" />
+            </circle>
+        </svg>
 
-      {/* Classical Particle (Red) - Stuck in Local Minima */}
-      {/* Replaced complex offset path with simple coordinate approximation to fix React warning */}
-      <motion.div
-        className="absolute w-4 h-4 rounded-full bg-red-500 shadow-[0_0_15px_red] z-20"
-        animate={{ 
-            left: ["25%", "35%", "35%", "25%"],
-            top: ["75%", "75%", "75%", "75%"]
-        }}
-        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-      >
-        <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[10px] text-red-400 whitespace-nowrap bg-black/50 px-1 rounded">Classical</div>
-      </motion.div>
-
-      {/* Quantum Particle (Cyan) - Tunneling Through Barrier */}
-      <motion.div
-        className="absolute w-4 h-4 rounded-full bg-cyan-400 shadow-[0_0_15px_cyan] z-20"
-        animate={{ 
-           left: ["35%", "65%", "92%"],
-           top: ["75%", "70%", "90%"],
-           opacity: [1, 0.3, 1], // Dimming represents tunneling
-           scale: [1, 0.8, 1]
-        }}
-        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", times: [0, 0.5, 1] }}
-      >
-        <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] text-cyan-400 whitespace-nowrap bg-black/50 px-1 rounded">Quantum Tunneling</div>
-      </motion.div>
+        {/* Labels */}
+        <div className="absolute bottom-4 left-6 text-[10px] font-mono text-red-400 flex items-center gap-2 bg-black/50 px-2 py-1 rounded border border-red-500/30">
+            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" /> Classical Minima (Stuck)
+        </div>
+        <div className="absolute bottom-4 right-6 text-[10px] font-mono text-purple-400 flex items-center gap-2 bg-black/50 px-2 py-1 rounded border border-purple-500/30">
+             Global Minima (Tunneling) <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+        </div>
     </div>
   );
 };

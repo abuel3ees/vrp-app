@@ -1,28 +1,146 @@
-import { motion } from "framer-motion";
+import React, { useEffect, useRef } from "react";
 
-export const BlochSphere = () => (
-    <div className="relative w-96 h-96 perspective-1000 group">
-        <motion.div 
-            className="w-full h-full rounded-full border border-slate-700/50 bg-gradient-to-br from-slate-800/20 to-slate-900/20 relative transform-style-3d shadow-[0_0_50px_rgba(34,211,238,0.1)] backdrop-blur-sm"
-            animate={{ rotateY: 360 }}
-            transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-        >
-            <div className="absolute top-1/2 left-0 w-full h-[1px] bg-cyan-500/20" />
-            <div className="absolute top-0 left-1/2 w-[1px] h-full bg-cyan-500/20" />
-            <div className="absolute top-[15%] left-[15%] w-[70%] h-[70%] border border-purple-500/10 rounded-full" />
+export const BlochSphere = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // Retina Scaling
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+    const r = 140; // Size
+
+    let angleY = 0;
+    let angleX = 0.3; // Slight tilt to see volume
+
+    const rotate3D = (x: number, y: number, z: number) => {
+        // Rotate Y
+        let x1 = x * Math.cos(angleY) - z * Math.sin(angleY);
+        let z1 = z * Math.cos(angleY) + x * Math.sin(angleY);
+        // Rotate X
+        let y2 = y * Math.cos(angleX) - z1 * Math.sin(angleX);
+        let z2 = z1 * Math.cos(angleX) + y * Math.sin(angleX);
+        return { x: x1, y: y2, z: z2 };
+    };
+
+    const draw = () => {
+        ctx.clearRect(0, 0, rect.width, rect.height);
+        angleY += 0.008;
+
+        // 1. Sphere Glow
+        const grad = ctx.createRadialGradient(cx, cy, r * 0.4, cx, cy, r * 1.2);
+        grad.addColorStop(0, "rgba(168, 85, 247, 0.2)");
+        grad.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 2. Wireframe Drawing Function
+        const drawRing = (type: 'lat' | 'lon', offset: number, color: string) => {
+            ctx.beginPath();
+            let firstPoint = true;
             
-            {/* The State Vector */}
-            <motion.div 
-                className="absolute top-1/2 left-1/2 w-[2px] h-[48%] bg-gradient-to-t from-transparent to-purple-400 origin-bottom transform-style-3d"
-                initial={{ rotateX: 0, rotateZ: 0 }}
-                animate={{ rotateX: [0, 60, 20, 90, 0], rotateZ: [0, 180, 360] }}
-                transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-            >
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-[0_0_20px_#a855f7]" />
-            </motion.div>
+            // We draw the ring in small segments to handle 3D perspective
+            for (let i = 0; i <= 60; i++) {
+                const theta = (i / 60) * Math.PI * 2;
+                let x, y, z;
+
+                if (type === 'lon') { // Vertical
+                    x = r * Math.sin(theta) * Math.cos(offset);
+                    y = r * Math.cos(theta);
+                    z = r * Math.sin(theta) * Math.sin(offset);
+                } else { // Horizontal (Latitude)
+                    const latR = r * Math.sin(offset);
+                    const latY = r * Math.cos(offset);
+                    x = latR * Math.cos(theta);
+                    y = latY;
+                    z = latR * Math.sin(theta);
+                }
+
+                const p = rotate3D(x, y, z);
+                // Perspective
+                const scale = 500 / (500 - p.z);
+                const screenX = cx + p.x * scale;
+                const screenY = cy + p.y * scale;
+
+                if (firstPoint) {
+                    ctx.moveTo(screenX, screenY);
+                    firstPoint = false;
+                } else {
+                    ctx.lineTo(screenX, screenY);
+                }
+            }
             
-            <div className="absolute -top-8 left-1/2 -translate-x-1/2 text-white font-mono text-sm">|0⟩</div>
-            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-white font-mono text-sm">|1⟩</div>
-        </motion.div>
+            // Hack for simple depth: entire ring gets one opacity based on center depth? 
+            // Better: use a generic opacity that looks good for wireframes
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        };
+
+        // Draw Longitude Lines (Meridians)
+        for (let i = 0; i < 6; i++) {
+            // Calculate center of this ring to determine if it's "behind"
+            const centerP = rotate3D(r * Math.cos(i * Math.PI/3), 0, r * Math.sin(i * Math.PI/3));
+            const isBack = centerP.z > 0; // Simple depth check
+            const opacity = isBack ? 0.1 : 0.4;
+            drawRing('lon', (i * Math.PI) / 6, `rgba(168, 85, 247, ${opacity})`);
+        }
+
+        // Draw Equator & Latitudes
+        drawRing('lat', Math.PI / 2, "rgba(34, 211, 238, 0.8)"); // Equator (Cyan)
+        drawRing('lat', Math.PI / 4, "rgba(168, 85, 247, 0.2)"); // Upper
+        drawRing('lat', 3 * Math.PI / 4, "rgba(168, 85, 247, 0.2)"); // Lower
+
+        // 3. The Qubit Vector |ψ⟩
+        const vec = rotate3D(r * 0.7, -r * 0.7, 0); // 45 deg vector
+        const scale = 500 / (500 - vec.z);
+        const vx = cx + vec.x * scale;
+        const vy = cy + vec.y * scale;
+
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(vx, vy);
+        ctx.stroke();
+
+        // Tip
+        ctx.fillStyle = "#fff";
+        ctx.beginPath();
+        ctx.arc(vx, vy, 5, 0, Math.PI*2);
+        ctx.fill();
+        ctx.shadowColor = "#22d3ee";
+        ctx.shadowBlur = 15;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Labels
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 12px monospace";
+        ctx.fillText("|0⟩", cx - 10, cy - r - 20);
+        ctx.fillText("|1⟩", cx - 10, cy + r + 30);
+
+        requestAnimationFrame(draw);
+    };
+
+    draw();
+  }, []);
+
+  return (
+    <div className="w-full h-[400px] flex items-center justify-center bg-slate-900/30 rounded-3xl border border-white/5 backdrop-blur-sm">
+        <canvas ref={canvasRef} className="w-full h-full" />
     </div>
-);
+  );
+};
