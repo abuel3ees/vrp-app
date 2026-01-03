@@ -286,3 +286,41 @@
     @apply bg-background text-foreground;
     }
 }
+
+@layer base {
+    /* Smooth Scroll for the whole presentation */
+    html {
+        scroll-behavior: smooth;
+    }
+
+    /* Dark Mode Selection Color */
+    ::selection {
+        background-color: rgba(168, 85, 247, 0.3); /* Purple-500 */
+        color: #ffffff;
+    }
+
+    /* Hide Scrollbar but allow scrolling */
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+    .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+}
+
+@layer utilities {
+    /* Hardware Acceleration for smoother animations */
+    .gpu {
+        transform: translate3d(0, 0, 0);
+        backface-visibility: hidden;
+    }
+    
+    /* Neon Glow Utilities */
+    .text-glow {
+        text-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+    }
+    .box-glow {
+        box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+    }
+}

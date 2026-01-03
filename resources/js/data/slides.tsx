@@ -5,34 +5,35 @@ import {
     Atom, Truck, Activity, BrainCircuit, Layers, Database, 
     Zap, Cpu, CheckCircle2, GitBranch, AlertTriangle, ArrowRight, Share2, Scale, 
     Code2, Terminal, Route, Microscope, Binary, Smartphone, Globe, Box, Cloud, Server,
-    Timer, BarChart3, Lock
+    Timer, BarChart3, Lock, BookOpen, GraduationCap, FileText
 } from "lucide-react";
 
 // UI & Primitives
 import { GlassCard } from "@/Components/ui/PresentationPrimitives";
 import { Button } from "@/Components/ui/button";
-import { FluidText } from "@/Components/ui/FluidText"; // <--- The new Clean Text Component
+import { FluidText } from "@/Components/ui/FluidText"; 
 
 // Visualizations
 import { VrpMapVisualizer } from "@/Components/visualizations/VrpMapVisualizer"; 
 import { BlochSphere } from "@/Components/visualizations/BlochSphere"; 
 import { TerminalSimulator } from "@/Components/visualizations/TerminalSimulator";
+import { EagleProcessor } from "@/Components/visualizations/EagleProcessor";
+import { LogisticsSwarm } from "@/Components/visualizations/LogisticsSwarm";
+import { NetworkComplexity } from "@/Components/visualizations/NetworkComplexity";
+import { HolographicGlobe } from "@/Components/visualizations/HolographicGlobe";
 
 // Math Typesetting
 import { InlineMath, BlockMath } from "react-katex";
-import { EagleProcessor } from "@/components/visualizations/EagleProcessor";
-import { LogisticsSwarm } from "@/components/visualizations/LogisticsSwarm";
-import { NetworkComplexity } from "@/components/visualizations/NetworkComplexity";
-import { HolographicGlobe } from "@/components/visualizations/HolographicGlobe";
+import { XRayLens } from "@/components/ui/XRayLens";
 
 export const slides: SlideData[] = [
-  // --- SLIDE 1: COVER (Clean & Premium) ---
+  // --- SLIDE 1: COVER (Updated with Team Names) ---
   {
     id: "cover",
     category: "Introduction",
     title: "",
     layout: "hero",
-    notes: "Good morning. Today we present our graduation project: A Quantum-Enhanced VRP Solver. We are addressing the limitations of classical logistics using the QAOA algorithm on IBM Quantum hardware.",
+    notes: "Good morning. We are Leen, Abdulrahman, and Malak. Today we present our graduation project: Design and Implementation of Optimal Delivery Routes Using Quantum Optimization Algorithms, supervised by Dr. Awos Kanan.",
     content: (
       <div className="text-center space-y-12 z-10 relative mt-10">
         <div className="flex justify-center">
@@ -45,7 +46,6 @@ export const slides: SlideData[] = [
             </div>
         </div>
         <div className="space-y-8">
-            {/* Premium Fluid Text Animation */}
             <h1 className="text-5xl md:text-8xl font-black tracking-tight text-white leading-[0.9]">
                 <FluidText text="QUANTUM LOGISTICS" />
             </h1>
@@ -53,7 +53,16 @@ export const slides: SlideData[] = [
             <p className="text-xl md:text-2xl text-slate-400 font-light max-w-3xl mx-auto">
                 Design and Implementation of Optimal Delivery Routes Using <span className="text-white font-medium border-b border-purple-500">QAOA</span>
             </p>
+            
+            {/* Team Members from PDF Page 1 */}
+            <div className="flex flex-wrap justify-center gap-8 text-sm text-slate-300 mt-6">
+                <div className="flex items-center gap-2"><GraduationCap className="w-4 h-4 text-purple-400"/> Leen Almousa</div>
+                <div className="flex items-center gap-2"><GraduationCap className="w-4 h-4 text-purple-400"/> Abdulrahman Al-Essa</div>
+                <div className="flex items-center gap-2"><GraduationCap className="w-4 h-4 text-purple-400"/> Malak Alshawish</div>
+            </div>
+
             <div className="text-sm text-slate-500 uppercase tracking-widest mt-8 font-mono">
+                Supervised By: <span className="text-white">Dr. Awos Kanan</span><br/>
                 Princess Sumaya University for Technology<br/>
                 <span className="text-purple-500">Spring 2026</span>
             </div>
@@ -62,14 +71,14 @@ export const slides: SlideData[] = [
     )
   },
 
-  // --- SLIDE 2: MOTIVATION (LOGISTICS SWARM) ---
+  // --- SLIDE 2: MOTIVATION (Updated with Eq 2.1) ---
   {
     id: "motivation",
     category: "Motivation",
     title: "The Logistics Crisis",
-    subtitle: "Why Classical Computers Fail",
+    subtitle: "Combinatorial Explosion (Doc Ref: 2.1.1)",
     layout: "split_text_visual",
-    notes: "Visualizing complexity: In 'Chaos' mode, you see how classical algorithms randomly search for solutions. In 'Quantum Flow' mode, the swarm synchronizes, representing coherence.",
+    notes: "Visualizing complexity: In 'Chaos' mode, you see how classical algorithms randomly search. As stated in Eq 2.1 of our report, 20 locations result in 1.2 x 10^17 routes.",
     left: (
       <div className="space-y-8 text-slate-300">
         <p className="text-lg leading-relaxed font-light">
@@ -77,9 +86,10 @@ export const slides: SlideData[] = [
         </p>
         <div className="space-y-4">
           <GlassCard className="border-l-4 border-l-red-500">
-             <h4 className="font-bold text-white mb-2 flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-red-400"/> Combinatorial Explosion</h4>
-             <p className="text-sm text-slate-400 mb-2">For just 20 locations:</p>
+             <h4 className="font-bold text-white mb-2 flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-red-400"/> Combinatorial Explosion (Eq 2.1)</h4>
+             <p className="text-sm text-slate-400 mb-2">For just 20 locations ($n=20$):</p>
              <div className="font-mono text-red-400 text-lg">19! ≈ 1.2 × 10¹⁷ routes</div>
+             <p className="text-[10px] text-slate-500 mt-1">Source: Report Page 7</p>
           </GlassCard>
           <GlassCard className="border-l-4 border-l-emerald-500">
              <h4 className="font-bold text-white mb-2 flex items-center gap-2"><Activity className="w-4 h-4 text-emerald-400"/> Economic Impact</h4>
@@ -100,9 +110,9 @@ export const slides: SlideData[] = [
       id: "complexity",
       category: "Theory",
       title: "The Complexity Cliff",
-      subtitle: "NP-Hard Scaling Limits",
+      subtitle: "NP-Hard Scaling Limits (Doc Ref: Fig 2.1)",
       layout: "graph_visual", 
-      notes: "This graph demonstrates the 'Quantum Advantage' threshold. Classical brute force hits a wall at around 20 cities. Quantum algorithms scale more favorably.",
+      notes: "This graph demonstrates the 'Quantum Advantage' threshold. Classical brute force hits a wall at the 'Crossover Size'.",
       left: (
           <div className="space-y-6">
                <div className="p-6 bg-slate-900 border border-white/10 rounded-xl space-y-4">
@@ -123,7 +133,7 @@ export const slides: SlideData[] = [
                    </div>
                </div>
                <p className="text-slate-400 text-sm">
-                   At <strong>50 Cities</strong>, a classical supercomputer would take longer than the age of the universe to check every route. QAOA reduces this search space significantly by filtering low-probability states.
+                   At <strong>50 Cities</strong>, a classical supercomputer would take longer than the age of the universe. QAOA reduces this search space significantly by filtering low-probability states.
                </p>
           </div>
       )
@@ -134,16 +144,16 @@ export const slides: SlideData[] = [
       id: "tech_stack",
       category: "Implementation",
       title: "Technology Stack",
-      subtitle: "Modern Tools & Frameworks",
+      subtitle: "Three-Tier Architecture (Doc Ref: 3.1.5)",
       layout: "grid_cards",
-      notes: "We built this using a modern, scalable stack. React and Inertia for the frontend, Laravel for the backend API, and a dedicated Python environment for the Quantum logic.",
+      notes: "We built this using a modern, scalable stack as described in Section 3.1.5 and 3.6 of the report.",
       items: [
-          { icon: <Code2 className="text-blue-400"/>, title: "React & TypeScript", desc: "Frontend UI with Framer Motion animations." },
-          { icon: <Database className="text-red-400"/>, title: "Laravel 10", desc: "REST API, Queue Management, and MySQL." },
-          { icon: <Atom className="text-purple-400"/>, title: "Qiskit SDK", desc: "Quantum circuit construction." },
-          { icon: <Cloud className="text-cyan-400"/>, title: "IBM Quantum", desc: "Execution on 'ibm_osaka' backend." },
-          { icon: <Smartphone className="text-emerald-400"/>, title: "Flutter", desc: "Cross-platform mobile app for drivers." },
-          { icon: <Terminal className="text-yellow-400"/>, title: "Docker", desc: "Containerized deployment." }
+          { icon: <Code2 className="text-blue-400"/>, title: "React & TypeScript", desc: "Admin Dashboard (Ch 3.6)" },
+          { icon: <Database className="text-red-400"/>, title: "Laravel 10", desc: "Mastermind Backend Engine" },
+          { icon: <Atom className="text-purple-400"/>, title: "Qiskit SDK", desc: "Quantum Circuits & Transpiler" },
+          { icon: <Cloud className="text-cyan-400"/>, title: "IBM Quantum", desc: "Runtime execution on 'ibm_osaka'" },
+          { icon: <Smartphone className="text-emerald-400"/>, title: "Flutter", desc: "Driver Mobile App" },
+          { icon: <Terminal className="text-yellow-400"/>, title: "Docker", desc: "Containerized deployment" }
       ]
   },
 
@@ -152,7 +162,7 @@ export const slides: SlideData[] = [
       id: "full_stack",
       category: "System Design",
       title: "End-to-End Architecture",
-      subtitle: "Connecting Mobile to Quantum",
+      subtitle: "Connecting Mobile to Quantum (Doc Ref: Fig 3.6)",
       layout: "system_visual",
       notes: "Our architecture is a true hybrid stack. We use Flutter for the driver's mobile app, Laravel as the central orchestrator, and Qiskit/Python for the quantum solving engine.",
       items: [
@@ -167,9 +177,9 @@ export const slides: SlideData[] = [
       id: "workflow",
       category: "Methodology",
       title: "System Workflow",
-      subtitle: "Hybrid Quantum-Classical Pipeline",
+      subtitle: "Hybrid Quantum-Classical Pipeline (Doc Ref: Fig 3.5)",
       layout: "pipeline_flow",
-      notes: "The workflow begins with user input, pre-processed classically into a Distance Matrix. This is converted to a QUBO model, then an Ising Hamiltonian, which is finally optimized by the Quantum Processor.",
+      notes: "The workflow begins with user input, pre-processed classically into a Distance Matrix. This is converted to a QUBO model, then an Ising Hamiltonian.",
       items: [
           { title: "User Input", desc: "Accept stop coordinates and depot data. Compute real-world distance matrix." },
           { title: "Formulate QUBO", desc: "Map the VRP constraints to a Quadratic Unconstrained Binary Optimization model." },
@@ -179,30 +189,82 @@ export const slides: SlideData[] = [
       ]
   },
 
-  // --- SLIDE 7: MATHEMATICS ---
+  // --- SLIDE 7: MATHEMATICS (Clean Layout) ---
   {
       id: "qubo_math",
       category: "Mathematics",
       title: "QUBO Formulation",
-      subtitle: "The Binary Decision Matrix",
+      subtitle: "The Binary Decision Matrix (Doc Ref: 2.1.3.2)",
       layout: "matrix_visual",
-      notes: "Mathematically, we map the problem to a Q-Matrix. The diagonal represents the cost of visiting nodes, while the off-diagonal elements represent the travel cost between them.",
+      notes: "On the left, we have the mathematical formulation. Hover over the equation box to see the code implementation. On the right is the interactive Q-Matrix.",
       left: (
-          <div className="space-y-6">
-              <p className="text-lg text-slate-300">
-                  To solve VRP on a quantum computer, we must map the routing constraints to a Q-Matrix ($Q$) where the objective is to minimize:
-              </p>
-              <div className="p-6 bg-slate-900 border border-white/10 rounded-xl">
-                  <BlockMath math="f(x) = \sum_{i} a_i x_i + \sum_{i<j} b_{ij} x_i x_j" />
+          <div className="h-full flex flex-col justify-center">
+              {/* 1. SEPARATE TEXT DESCRIPTION */}
+              <div className="mb-8 space-y-4">
+                  <p className="text-lg text-slate-300 leading-relaxed">
+                      To solve VRP on a quantum computer, we must map the routing constraints to a Q-Matrix ($Q$). The objective is to minimize the total energy state of the system.
+                  </p>
+                  <p className="text-sm text-slate-400">
+                      We translate real-world constraints (like "visit every city once") into mathematical penalties.
+                  </p>
               </div>
-              <ul className="space-y-3 text-sm text-slate-400">
-                  <li className="flex gap-2 items-center"><div className="w-2 h-2 bg-purple-500 rounded-full"/> <strong>Diagonal Terms (a):</strong> Node visiting costs.</li>
-                  <li className="flex gap-2 items-center"><div className="w-2 h-2 bg-slate-500 rounded-full"/> <strong>Off-Diagonal (b):</strong> Travel costs between nodes.</li>
-              </ul>
+              
+              {/* 2. THE RECTANGLE (X-Ray Lens Only) */}
+              <div className="h-64 w-full mb-8">
+                <XRayLens 
+                    label="QISKIT SOURCE"
+                    baseContent={
+                        <div className="flex flex-col items-center justify-center h-full w-full">
+                            <div className="text-xs text-slate-500 font-mono uppercase tracking-widest mb-4">Ising Hamiltonian (Eq 2.7)</div>
+                            
+                            {/* The Equation */}
+                            <div className="scale-125 transform transition-transform duration-500 hover:scale-100">
+                                <BlockMath math="H = \sum_{i} h_i Z_i + \sum_{i<j} J_{ij} Z_i Z_j" />
+                            </div>
+
+                            {/* Hover Hint */}
+                            <div className="mt-6 flex items-center gap-2 text-[10px] text-purple-400 font-mono bg-purple-500/10 border border-purple-500/20 rounded-full py-1.5 px-4">
+                                <span className="relative flex h-2 w-2">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
+                                </span>
+                                HOVER TO REVEAL CODE
+                            </div>
+                        </div>
+                    }
+                    revealContent={
+                        <div className="h-full flex flex-col justify-center text-xs font-mono text-left space-y-2 leading-relaxed text-blue-200 px-2">
+                            <div><span className="text-purple-400">from</span> qiskit_optimization <span className="text-purple-400">import</span> QuadraticProgram</div>
+                            
+                            <div className="pl-2 border-l-2 border-slate-700">
+                                <div className="text-slate-500 italic"># 1. Initialize Model</div>
+                                <div>qp = QuadraticProgram()</div>
+                            </div>
+
+                            <div className="pl-2 border-l-2 border-slate-700">
+                                <div className="text-slate-500 italic"># 2. Minimize Energy</div>
+                                <div>qp.minimize(linear=h, quadratic=J)</div>
+                            </div>
+
+                            <div className="pl-2 border-l-2 border-purple-500">
+                                <div className="text-slate-500 italic"># 3. Convert to Ising</div>
+                                <div className="font-bold text-white">H, offset = qp.to_ising()</div>
+                            </div>
+                        </div>
+                    }
+                />
+              </div>
+
+              {/* 3. SEPARATE INFO BOX */}
+              <div className="p-4 bg-slate-900/50 border-l-4 border-purple-500 rounded-r-xl mt-6">
+                  <div className="text-xs text-slate-500 uppercase font-bold mb-1">Mathematical Context</div>
+                  <div className="text-sm text-slate-400 flex items-center gap-1">
+                      <span className="text-purple-400 font-bold">J</span> terms represent the cost between nodes.
+                  </div>
+              </div>
           </div>
       )
   },
-
   // --- SLIDE 8: NOTEBOOK 1 (PREPROCESSING) ---
   {
       id: "nb_preprocessing",
@@ -210,10 +272,9 @@ export const slides: SlideData[] = [
       title: "Data Preprocessing",
       subtitle: "Cleaning and Matrix Generation",
       layout: "notebook_viewer",
-      // IMPORTANT: Update this absolutePath to your REAL path on your computer
       notebookPath: "/notebooks/data_preprocessing.ipynb",
-      absolutePath: "C:/Users/YOUR_NAME/Projects/quantum-logistics/public/notebooks/data_preprocessing.ipynb",
-      notes: "Here is the actual Jupyter notebook used for data preprocessing. We load the raw CSV data, clean missing coordinates, and generate the adjacency matrix."
+      absolutePath: "C:/Projects/Graduation/QuantumVRP/notebooks/data_preprocessing.ipynb",
+      notes: "Here is the actual Jupyter notebook used for data preprocessing. We load the raw CSV data and generate the adjacency matrix."
   },
 
   // --- SLIDE 9: FUNDAMENTALS (3D SPHERE) ---
@@ -221,28 +282,30 @@ export const slides: SlideData[] = [
       id: "fundamentals",
       category: "Quantum Fundamentals",
       title: "Qubits & Superposition",
-      subtitle: "Beyond Binary Logic",
+      subtitle: "Beyond Binary Logic (Doc Ref: Eq 2.4)",
       layout: "split_text_visual",
-      notes: "Unlike classical bits (0 or 1), a Qubit exists on the surface of this Bloch Sphere. It can be in a superposition of both states simultaneously, allowing us to compute millions of routes at once.",
+      notes: "Unlike classical bits (0 or 1), a Qubit exists in a superposition state |ψ⟩ = α|0⟩ + β|1⟩ (Eq 2.4).",
       left: (
           <div className="space-y-6">
               <GlassCard>
-                  <h4 className="font-bold text-white mb-2">Superposition</h4>
+                  <h4 className="font-bold text-white mb-2">Superposition (Eq 2.4)</h4>
+                  <div className="p-2 mb-2">
+                     <InlineMath math="|\psi\rangle = \alpha|0\rangle + \beta|1\rangle" />
+                  </div>
                   <p className="text-sm text-slate-400">
-                      Represented by the vector $\psi$. It can point anywhere on the sphere, not just the poles.
+                      Represented by the vector $\psi$. It can point anywhere on the sphere.
                   </p>
               </GlassCard>
               <GlassCard>
                   <h4 className="font-bold text-white mb-2">Entanglement</h4>
                   <p className="text-sm text-slate-400">
-                      When two qubits (spheres) are linked, the state of one instantly determines the state of the other, enabling parallel processing.
+                      When two qubits are linked, the state of one instantly determines the state of the other.
                   </p>
               </GlassCard>
           </div>
       ),
       right: (
           <div className="h-full flex items-center justify-center p-8">
-              {/* The Interactive 3D Bloch Sphere */}
               <div className="scale-75 md:scale-100">
                 <BlochSphere />
               </div>
@@ -250,16 +313,14 @@ export const slides: SlideData[] = [
       )
   },
 
-  
-
   // --- SLIDE 10: QUANTUM THEORY ---
   {
       id: "tunneling",
       category: "Theory",
       title: "Quantum Tunneling",
-      subtitle: "Escaping Local Minima",
+      subtitle: "Escaping Local Minima (Doc Ref: Fig 2.5)",
       layout: "landscape_visual",
-      notes: "Unlike classical Simulated Annealing which must 'climb' over barriers, Quantum Annealing uses tunneling to pass through energy barriers, finding the global minimum faster.",
+      notes: "Unlike classical Simulated Annealing which must 'climb' over barriers, Quantum Annealing uses tunneling (Figure 2.5).",
       left: (
           <div className="space-y-6">
               <p className="text-lg text-slate-300">
@@ -549,32 +610,32 @@ def solve_vrp_heuristic(matrix, n):
       title: "Quantum Solver",
       subtitle: "Qiskit Implementation",
       layout: "notebook_viewer",
-      // IMPORTANT: Update this absolutePath to your REAL path on your computer
       notebookPath: "/notebooks/quantum_solver.ipynb",
-      absolutePath: "C:/Users/YOUR_NAME/Projects/quantum-logistics/public/notebooks/quantum_solver.ipynb",
+      absolutePath: "C:/Projects/Graduation/QuantumVRP/notebooks/quantum_solver.ipynb",
       notes: "This notebook contains the core QAOA logic. You can see the circuit construction, the parameter optimization loop, and the final measurement extraction."
   },
 
- // --- SLIDE 20: TOPOLOGY (UPDATED) ---
+ // --- SLIDE 20: TOPOLOGY (UPDATED with PDF Constraints) ---
   {
     id: "topology",
     category: "Hardware",
     title: "Hardware Constraints",
-    subtitle: "Mapping to IBM Eagle (127 Qubits)",
-    layout: "split_text_visual", // Changed from 'graph_visual' to support custom right-side component
-    notes: "We map our problem to IBM's 127-qubit Eagle processor. The heavy-hex topology requires us to insert SWAP gates to connect non-adjacent qubits, which adds noise.",
+    subtitle: "Mapping to IBM Eagle (Doc Ref: 3.2.1)",
+    layout: "split_text_visual", 
+    notes: "Specific hardware constraints found in Section 3.2.1 of the report: Memory limits simulation to ~30 qubits, and max circuit depth is 100 layers.",
     left: (
         <div className="space-y-6">
             <p className="text-xl text-slate-300 font-light">
-                "The number of stops is limited by the capacity of the quantum hardware... The practical threshold is approximately 50 to 60 qubits."
+                "The number of stops is limited by the capacity of the quantum hardware... The practical threshold is approximately <strong>50 to 60 qubits</strong>."
             </p>
             <div className="p-6 bg-slate-900/50 rounded-xl border border-purple-500/30">
                 <h4 className="text-purple-400 font-bold mb-2 flex items-center gap-2">
-                    <Share2 className="w-5 h-5"/> SWAP Overhead
+                    <Share2 className="w-5 h-5"/> Physical Limits
                 </h4>
-                <p className="text-sm text-slate-400">
-                    Quantum chips are not fully connected. We must swap qubits to entangle distant nodes. This increases circuit depth and noise.
-                </p>
+                <ul className="text-sm text-slate-400 space-y-2">
+                    <li className="flex justify-between"><span>Simulator RAM (16GB)</span> <span className="text-white">Max ~30 Qubits</span></li>
+                    <li className="flex justify-between"><span>Connectivity</span> <span className="text-white">SWAP Overhead</span></li>
+                </ul>
             </div>
             <GlassCard>
                 <div className="flex justify-between items-center text-sm mb-2">
@@ -582,7 +643,7 @@ def solve_vrp_heuristic(matrix, n):
                     <span className="text-red-400 font-bold">100 Layers</span>
                 </div>
                 <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                    <div className="bg-red-500 h-full w-[80%]" />
+                    <div className="bg-red-500 h-full w-[100%]" />
                 </div>
                 <p className="text-[10px] text-slate-500 mt-2">Exceeding this causes qubit relaxation.</p>
             </GlassCard>
@@ -628,9 +689,9 @@ def solve_vrp_heuristic(matrix, n):
       id: "benchmarks",
       category: "Results",
       title: "Performance Benchmarks",
-      subtitle: "Classical vs. Hybrid Execution",
+      subtitle: "Classical vs. Hybrid (Doc Ref: 4.3)",
       layout: "split_text_visual",
-      notes: "We ran simulations on datasets ranging from 10 to 50 nodes. While Classical is faster for small sets, the Quantum Hybrid approach maintains consistent execution time as complexity grows.",
+      notes: "Based on Table 4.1 'Sample Test Results' in the report. Quantum shows promise in finding global minima but suffers from cloud latency.",
       left: (
           <div className="space-y-6">
               <h3 className="text-xl font-bold text-white">Simulation Results (N=50)</h3>
@@ -643,10 +704,6 @@ def solve_vrp_heuristic(matrix, n):
                       <div className="w-full h-4 bg-slate-800 rounded-full overflow-hidden flex">
                           <div className="h-full bg-blue-500 w-[85%] opacity-50"></div> {/* Classical */}
                           <div className="h-full bg-purple-500 w-[73%] -ml-[85%] relative z-10 shadow-[0_0_10px_rgba(168,85,247,0.5)]"></div> {/* Quantum */}
-                      </div>
-                      <div className="flex justify-between text-[10px] text-slate-500 mt-1 font-mono">
-                          <span>Classical: 450km</span>
-                          <span className="text-purple-400 font-bold">Quantum: 396km</span>
                       </div>
                   </div>
 
@@ -667,9 +724,9 @@ def solve_vrp_heuristic(matrix, n):
               </div>
               
               <div className="p-4 bg-white/5 border border-white/10 rounded-xl">
-                  <h4 className="text-sm font-bold text-white mb-2">Analysis</h4>
+                  <h4 className="text-sm font-bold text-white mb-2">Analysis (Ch 5)</h4>
                   <p className="text-xs text-slate-400 leading-relaxed">
-                      "While the Quantum solver has higher latency due to cloud queuing, it found a <strong>globally optimized route</strong> that saved 12% in fuel costs compared to the classical greedy heuristic."
+                      "While the Quantum solver has higher latency due to cloud queuing, it found a <strong>globally optimized route</strong> that saved 12% in fuel costs."
                   </p>
               </div>
           </div>
@@ -707,9 +764,9 @@ def solve_vrp_heuristic(matrix, n):
       id: "ux_driver",
       category: "User Experience",
       title: "The Driver App",
-      subtitle: "Real-time Optimization",
+      subtitle: "Real-time Optimization (Doc Ref: 3.6)",
       layout: "mobile_visual",
-      notes: "Ultimately, the complexity is hidden from the user. The driver app receives the optimized JSON route and renders it on a map.",
+      notes: "The complexity is hidden from the user. The driver app (built in Flutter) receives the optimized JSON route and renders it on a map.",
       right: (
           <div className="space-y-6">
               <GlassCard>
@@ -734,28 +791,28 @@ def solve_vrp_heuristic(matrix, n):
       )
   },
 
-  // --- SLIDE 24: STANDARDS ---
+  // --- SLIDE 24: STANDARDS (Updated with PDF Standards) ---
   {
       id: "standards",
       category: "Engineering",
       title: "Engineering Standards",
-      subtitle: "Compliance & Quality Assurance",
+      subtitle: "Compliance & Quality Assurance (Doc Ref: 1.5)",
       layout: "split_text_visual",
-      notes: "We adhered to ISO/IEC 25010 for software quality and IEEE 829 for documentation. The system passed all unit and integration tests with a latency under 300ms.",
+      notes: "We adhered to ISO/IEC 25010 for software quality and IEEE 829 for documentation as required by the senior design project guidelines.",
       left: (
           <div className="space-y-4">
               <GlassCard className="flex items-start gap-4">
                   <CheckCircle2 className="w-6 h-6 text-emerald-400 mt-1 shrink-0" />
                   <div>
                       <h4 className="font-bold text-white">ISO/IEC 25010</h4>
-                      <p className="text-sm text-slate-400">Systems and Software Quality Models. Focused on Performance Efficiency and Reliability.</p>
+                      <p className="text-sm text-slate-400">Systems and Software Quality Models: Performance Efficiency and Reliability.</p>
                   </div>
               </GlassCard>
               <GlassCard className="flex items-start gap-4">
                   <GitBranch className="w-6 h-6 text-blue-400 mt-1 shrink-0" />
                   <div>
                       <h4 className="font-bold text-white">IEEE 829</h4>
-                      <p className="text-sm text-slate-400">Software Test Documentation. Rigorous unit testing for the classical pre-processing and VQE output validation.</p>
+                      <p className="text-sm text-slate-400">Software Test Documentation. Rigorous unit testing for the classical pre-processing.</p>
                   </div>
               </GlassCard>
               <GlassCard className="flex items-start gap-4">
@@ -791,21 +848,21 @@ def solve_vrp_heuristic(matrix, n):
       )
   },
 
-  // --- SLIDE 25: TIMELINE ---
+  // --- SLIDE 25: TIMELINE (Updated Dates per Table 1.1) ---
   {
       id: "timeline",
       category: "Project Management",
       title: "Development Timeline",
-      subtitle: "Agile Sprints (16 Weeks)",
+      subtitle: "Load Distribution (Doc Ref: Table 1.1)",
       layout: "hero",
-      notes: "We divided the project into 4 main phases over 16 weeks. We spent the majority of time on the Quantum Algorithm implementation and testing.",
+      notes: "Based on Table 1.1 'Load Distribution', we executed the project phases from October to December.",
       content: (
           <div className="w-full max-w-5xl mx-auto space-y-8 mt-12">
               {[
-                  { phase: "Phase 1: Research", time: "Weeks 1-4", color: "bg-blue-500", task: "Literature Review, VRP Math Formulation" },
-                  { phase: "Phase 2: Development", time: "Weeks 5-10", color: "bg-purple-500", task: "Laravel Backend, Flutter App, Initial Qiskit Circuits" },
-                  { phase: "Phase 3: Integration", time: "Weeks 11-14", color: "bg-cyan-500", task: "Connecting API to Python, Hybrid Logic, Error Handling" },
-                  { phase: "Phase 4: Testing", time: "Weeks 15-16", color: "bg-emerald-500", task: "Unit Tests, Benchmark Gathering, Documentation" },
+                  { phase: "Phase 1: Research", time: "Oct - Nov", color: "bg-blue-500", task: "Literature Review, Initial Designs, VRP Formulation" },
+                  { phase: "Phase 2: Development", time: "Nov - Dec", color: "bg-purple-500", task: "Laravel Backend, Flutter App, Qiskit Circuits" },
+                  { phase: "Phase 3: Integration", time: "Dec", color: "bg-cyan-500", task: "Connecting API to Python, Hybrid Logic, Error Handling" },
+                  { phase: "Phase 4: Testing", time: "Dec - Jan", color: "bg-emerald-500", task: "Unit Tests, Benchmark Gathering, Documentation" },
               ].map((item, i) => (
                   <div key={i} className="relative pl-8 border-l border-white/10 pb-8 last:pb-0">
                       <div className={`absolute -left-1.5 top-2 w-3 h-3 rounded-full ${item.color} shadow-[0_0_10px_currentColor]`} />
@@ -825,17 +882,35 @@ def solve_vrp_heuristic(matrix, n):
     id: "conclusion",
     category: "Conclusion",
     title: "Future Work",
-    subtitle: "The Path to Quantum Advantage",
+    subtitle: "The Path to Quantum Advantage (Doc Ref: Ch 5)",
     layout: "grid_cards",
-    notes: "For future work, we intend to integrate Quantum Machine Learning for parameter initialization and test on the larger 433-qubit Osprey processor.",
+    notes: "For future work (Chapter 5), we intend to integrate Quantum Machine Learning (Section 3.4.1) and hardware scaling.",
     items: [
-        { icon: <Zap className="text-yellow-400"/>, title: "QML Integration", desc: "Using Quantum Feature Maps to predict initial parameters instead of random starting points." },
-        { icon: <Cpu className="text-purple-400"/>, title: "Hardware Scaling", desc: "Testing on IBM Eagle (127 qubits) and Osprey (433 qubits) processors." },
-        { icon: <Activity className="text-emerald-400"/>, title: "Error Mitigation", desc: "Implementing Zero Noise Extrapolation (ZNE) to improve result fidelity." }
+        { icon: <Zap className="text-yellow-400"/>, title: "QML Integration", desc: "Using Quantum Feature Maps for parameter initialization (Ch 3.4.1)." },
+        { icon: <Cpu className="text-purple-400"/>, title: "Hardware Scaling", desc: "Testing on IBM Osprey (433 qubits) as hardware matures." },
+        { icon: <Activity className="text-emerald-400"/>, title: "Error Mitigation", desc: "Implementing Zero Noise Extrapolation (ZNE) to improve fidelity." }
     ]
   },
 
-  // --- SLIDE 27: DEMO LINK ---
+  // --- NEW SLIDE: DOCUMENTATION MAP ---
+  {
+      id: "doc_map",
+      category: "Appendix",
+      title: "Documentation Reference",
+      subtitle: "Thesis Chapter Mapping",
+      layout: "grid_cards",
+      notes: "This slide maps our presentation sections directly to the provided thesis chapters for further reading.",
+      items: [
+          { icon: <BookOpen className="text-blue-400"/>, title: "Introduction", desc: "Chapter 1 (Pages 1-5)" },
+          { icon: <Atom className="text-purple-400"/>, title: "Quantum Theory", desc: "Chapter 2 (Pages 6-21)" },
+          { icon: <BrainCircuit className="text-pink-400"/>, title: "System Design", desc: "Chapter 3 (Pages 22-37)" },
+          { icon: <BarChart3 className="text-green-400"/>, title: "Results", desc: "Chapter 4 (Pages 38-39)" },
+          { icon: <FileText className="text-yellow-400"/>, title: "Conclusion", desc: "Chapter 5 (Page 40)" },
+          { icon: <Code2 className="text-slate-400"/>, title: "Source Code", desc: "Appendix B (Page 50)" }
+      ]
+  },
+
+  // --- SLIDE 28: DEMO LINK ---
   {
     id: "demo",
     category: "Live Demo",
@@ -853,9 +928,13 @@ def solve_vrp_heuristic(matrix, n):
                 <p className="text-2xl text-slate-400 max-w-2xl mx-auto font-light">
                     Comparing <span className="text-blue-400 font-bold">Classical</span> vs. <span className="text-purple-400 font-bold">Quantum</span> Performance
                 </p>
-                <p className="text-sm text-slate-500">
-                   "Demonstration of system functionality (driver app + admin dashboard)"
-                </p>
+                <div className="flex justify-center gap-4 text-sm text-slate-500 mt-4">
+                    <span>Admin Dashboard</span>
+                    <span>•</span>
+                    <span>Flutter Driver App</span>
+                    <span>•</span>
+                    <span>IBM Quantum Platform</span>
+                </div>
             </div>
 
             <div className="pt-8 flex justify-center">

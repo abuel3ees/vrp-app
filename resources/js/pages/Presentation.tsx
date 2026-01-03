@@ -1,22 +1,30 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Head } from "@inertiajs/react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, Play, Pause, HelpCircle, Grid, Wand2, PenTool, Focus, Mic } from "lucide-react";
+import { ArrowLeft, ArrowRight, Play, Pause, HelpCircle, Grid, Wand2, PenTool, Focus, Mic, Search } from "lucide-react";
 import { Button } from "@/Components/ui/button"; 
 import "katex/dist/katex.min.css"; 
 
+// --- DATA & HOOKS ---
 import { slides } from "@/data/slides";
+import { useSoundEffects } from "@/hooks/useSoundEffects";
+
+// --- VISUAL ENVIRONMENT ---
 import { QuantumField } from "@/Components/visualizations/QuantumField";
 import { SectionBadge } from "@/Components/ui/PresentationPrimitives";
 import { FullScreenToggle } from "@/components/fullscreen-toggle";
+
+// --- INTERACTIVE TOOLS ---
 import { ShortcutsModal } from "@/Components/ui/ShortcutsModal"; 
 import { SlideOverview } from "@/Components/ui/SlideOverview";
 import { LaserPointer } from "@/Components/ui/LaserPointer";
 import { DrawingOverlay } from "@/Components/ui/DrawingOverlay";
 import { SpotlightOverlay } from "@/Components/ui/SpotlightOverlay";
 import { SpeakerNotes } from "@/Components/ui/SpeakerNotes";
+import { VoiceControl } from "@/Components/ui/VoiceControl";
+import { CommandMenu } from "@/Components/ui/CommandMenu"; // NEW: Cmd+K Menu
 
-// Import Layouts
+// --- LAYOUTS ---
 import { 
     SplitLayout, GridLayout, HeroLayout, TerminalLayout, ArchitectureLayout,
     CodeLayout, GraphLayout, PipelineLayout, LandscapeLayout,
@@ -24,44 +32,62 @@ import {
 } from "@/Components/layouts/SlideLayouts";
 
 export default function Presentation() {
+  // --- 1. STATE MANAGEMENT ---
   const [currentSlide, setCurrentSlide] = useState(0);
   const [direction, setDirection] = useState(0);
   const [isAutoplay, setIsAutoplay] = useState(false);
   
-  // UI States
+  // UI Panels
   const [showHelp, setShowHelp] = useState(false);
   const [showOverview, setShowOverview] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+  const [showCmdPalette, setShowCmdPalette] = useState(false); // Command Palette State
   
-  // Tool States
+  // Tools
   const [zenMode, setZenMode] = useState(false);
   const [laserMode, setLaserMode] = useState(false);
   const [drawMode, setDrawMode] = useState(false);
   const [spotlightMode, setSpotlightMode] = useState(false);
   
+  // Logic Refs
   const autoplayTimer = useRef<NodeJS.Timeout | null>(null);
   const slide = slides[currentSlide];
+  const { playSlideTransition, playClick } = useSoundEffects();
 
+  // --- 2. NAVIGATION LOGIC ---
   const changeSlide = useCallback((newDir: number) => {
     const next = currentSlide + newDir;
     if (next >= 0 && next < slides.length) {
+      playSlideTransition();
       setDirection(newDir);
       setCurrentSlide(next);
     } else {
-        setIsAutoplay(false);
+        setIsAutoplay(false); // Stop autoplay at end
     }
-  }, [currentSlide]);
+  }, [currentSlide, playSlideTransition]);
 
   const jumpToSlide = (index: number) => {
+      playClick();
       setDirection(index > currentSlide ? 1 : -1);
       setCurrentSlide(index);
       setShowOverview(false);
   };
 
-  // Keyboard Handlers
+  // --- 3. INPUT HANDLERS (Keyboard) ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // 1. Blocker Keys (Input modes)
+      // Priority 1: Command Palette (Cmd/Ctrl + K)
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setShowCmdPalette(prev => !prev);
+        return;
+      }
+
+      // Priority 2: Blocker Keys (If modal/tool is open, ignore nav keys)
+      if (showCmdPalette) {
+          if (e.key === "Escape") setShowCmdPalette(false);
+          return; 
+      }
       if (drawMode) {
           if (e.key === "Escape") setDrawMode(false);
           return;
@@ -71,24 +97,25 @@ export default function Presentation() {
           return;
       }
 
-      // 2. Navigation
+      // Priority 3: Navigation
       if (e.key === "ArrowRight" || e.key === " " || e.key === "Enter") changeSlide(1);
       else if (e.key === "ArrowLeft") changeSlide(-1);
       
-      // 3. Tools
+      // Priority 4: Tool Toggles
       else if (e.key === "?" || e.key === "/") setShowHelp(prev => !prev);
       else if (e.key === "g") setShowOverview(true);
-      else if (e.key === "l") { setLaserMode(prev => !prev); setSpotlightMode(false); }
-      else if (e.key === "d") { setDrawMode(true); setLaserMode(false); setSpotlightMode(false); }
-      else if (e.key === "s") { setSpotlightMode(prev => !prev); setLaserMode(false); }
+      else if (e.key === "l") { setLaserMode(prev => !prev); setSpotlightMode(false); playClick(); }
+      else if (e.key === "d") { setDrawMode(true); setLaserMode(false); setSpotlightMode(false); playClick(); }
+      else if (e.key === "s") { setSpotlightMode(prev => !prev); setLaserMode(false); playClick(); }
       else if (e.key === "n") setShowNotes(prev => !prev);
       else if (e.key === "z") setZenMode(prev => !prev);
     };
+
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [changeSlide, showOverview, drawMode]);
+  }, [changeSlide, showOverview, drawMode, showCmdPalette, playClick]);
 
-  // Autoplay Effect
+  // --- 4. AUTOPLAY EFFECT ---
   useEffect(() => {
     if (isAutoplay) {
         autoplayTimer.current = setInterval(() => changeSlide(1), 5000);
@@ -98,6 +125,7 @@ export default function Presentation() {
     return () => { if (autoplayTimer.current) clearInterval(autoplayTimer.current); }
   }, [isAutoplay, changeSlide]);
 
+  // --- 5. RENDER HELPERS ---
   const variants = {
     enter: (direction: number) => ({
       x: direction > 0 ? 50 : -50,
@@ -145,25 +173,43 @@ export default function Presentation() {
     <div className={`relative w-screen h-screen bg-slate-950 overflow-hidden text-slate-200 font-sans selection:bg-purple-500/30 ${laserMode ? 'cursor-none' : ''}`}>
       <Head title={`${slide.category || 'Presentation'} - Slide ${currentSlide + 1}`} />
       
-      {/* OVERLAYS & TOOLS */}
+      {/* ================= BACKGROUND & TOOLS ================= */}
       <QuantumField />
       <LaserPointer active={laserMode} />
       <DrawingOverlay active={drawMode} onClose={() => setDrawMode(false)} />
       <SpotlightOverlay active={spotlightMode} />
       
-      {/* FLOATING PANELS */}
+      {/* ================= MODALS & OVERLAYS ================= */}
       <SpeakerNotes isOpen={showNotes} notes={slide.notes} onClose={() => setShowNotes(false)} />
       <ShortcutsModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
       <SlideOverview isOpen={showOverview} slides={slides} currentIndex={currentSlide} onSelect={jumpToSlide} onClose={() => setShowOverview(false)} />
+      <CommandMenu slides={slides} isOpen={showCmdPalette} onClose={() => setShowCmdPalette(false)} onSelect={jumpToSlide} />
       
-      {/* TOP BAR (Hidden in Zen Mode) */}
+      {/* Voice Control (Always active unless browser denies) */}
+      <VoiceControl 
+        onNext={() => changeSlide(1)} 
+        onPrev={() => changeSlide(-1)} 
+        onOverview={() => setShowOverview(true)} 
+      />
+
+      {/* ================= TOP BAR (UI Chrome) ================= */}
       <div className={`absolute top-0 left-0 w-full z-50 flex items-start justify-between p-6 transition-all duration-500 ${zenMode ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100'} pointer-events-none`}>
           <div className="flex items-center gap-4 pointer-events-auto">
-             <div className="flex items-end gap-2 text-white/20 hover:text-white transition-colors cursor-default">
-                <span className="text-4xl font-black leading-none">{(currentSlide + 1).toString().padStart(2, '0')}</span>
+             {/* Slide Counter */}
+             <div 
+                className="flex items-end gap-2 text-white/20 hover:text-white transition-colors cursor-pointer group"
+                onClick={() => setShowCmdPalette(true)}
+                title="Search Slides (Cmd+K)"
+             >
+                <span className="text-4xl font-black leading-none group-hover:text-purple-400 transition-colors">
+                    {(currentSlide + 1).toString().padStart(2, '0')}
+                </span>
                 <span className="text-xs font-bold mb-1">/ {slides.length.toString().padStart(2, '0')}</span>
+                <Search className="w-4 h-4 mb-1.5 opacity-0 group-hover:opacity-100 transition-opacity" />
              </div>
           </div>
+
+          {/* Quick Actions Toolbar */}
           <div className="pointer-events-auto flex gap-2">
             <Button onClick={() => setShowNotes(!showNotes)} variant="ghost" size="icon" className={`rounded-full ${showNotes ? 'text-yellow-400 bg-yellow-400/10' : 'hover:bg-white/10 text-slate-400'}`}>
                 <Mic className="w-5 h-5" />
@@ -184,7 +230,7 @@ export default function Presentation() {
           </div>
       </div>
 
-      {/* MAIN CONTENT AREA */}
+      {/* ================= MAIN CONTENT STAGE ================= */}
       <div className="w-full h-full flex flex-col items-center justify-center relative z-10 overflow-hidden">
         <div className="w-full max-w-7xl h-full max-h-[85vh] p-6 md:p-12 flex flex-col justify-center">
             <AnimatePresence initial={false} custom={direction} mode="wait">
@@ -197,14 +243,16 @@ export default function Presentation() {
                 exit="exit"
                 className="w-full h-full flex flex-col"
             >
+                {/* Dynamic Slide Header */}
                 {slide.layout !== 'hero' && (
                 <div className={`mb-6 border-b border-white/5 pb-4 shrink-0 transition-opacity duration-300 ${zenMode ? 'opacity-0' : 'opacity-100'}`}>
                     <SectionBadge text={slide.category} />
-                    <h2 className="text-3xl md:text-5xl font-bold text-white mb-2 leading-tight">{slide.title}</h2>
+                    <h2 className="text-3xl md:text-5xl font-bold text-white mb-2 leading-tight tracking-tight">{slide.title}</h2>
                     {slide.subtitle && <p className="text-lg md:text-xl text-slate-400 font-light">{slide.subtitle}</p>}
                 </div>
                 )}
                 
+                {/* Content Layout Renderer */}
                 <div className="flex-1 min-h-0 relative">
                     {renderLayout()}
                 </div>
@@ -213,13 +261,16 @@ export default function Presentation() {
         </div>
       </div>
 
-      {/* BOTTOM BAR (Hidden in Zen Mode) */}
+      {/* ================= BOTTOM BAR (Progress & Nav) ================= */}
       <div className={`absolute bottom-0 left-0 w-full z-50 transition-all duration-500 ${zenMode ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-100'}`}>
+          {/* Progress Bar */}
           <div className="flex w-full h-1.5 bg-slate-900 gap-[1px]">
               {slides.map((_, idx) => (
                   <div key={idx} className={`h-full flex-1 transition-all duration-300 ${idx <= currentSlide ? 'bg-purple-500' : 'bg-slate-800'}`} />
               ))}
           </div>
+          
+          {/* Left Controls */}
           <div className="absolute bottom-4 left-6 flex gap-3">
              <Button onClick={() => setShowHelp(true)} variant="ghost" size="icon" className="rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white">
                 <HelpCircle className="w-5 h-5" />
@@ -228,6 +279,8 @@ export default function Presentation() {
                 {isAutoplay ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
              </Button>
           </div>
+          
+          {/* Right Controls (Main Nav) */}
           <div className="absolute bottom-4 right-6 flex gap-4">
             <Button onClick={() => changeSlide(-1)} disabled={currentSlide === 0} variant="outline" size="icon" className="rounded-full w-12 h-12 bg-black/20 backdrop-blur border-white/10 hover:bg-white/10">
               <ArrowLeft className="w-5 h-5" />
