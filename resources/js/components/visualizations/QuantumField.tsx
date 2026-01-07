@@ -25,7 +25,6 @@ export const QuantumField = () => {
 
     let animationFrameId: number;
 
-    // 1. Setup
     const resize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
@@ -34,11 +33,19 @@ export const QuantumField = () => {
 
     const initParticles = () => {
       particlesRef.current = [];
-      const numberOfParticles = (canvas.width * canvas.height) / 9000; // Adjust density
+      let numberOfParticles = (canvas.width * canvas.height) / 11000;
+      if (numberOfParticles > 120) numberOfParticles = 120; // Cap for performance
+
       for (let i = 0; i < numberOfParticles; i++) {
         const x = Math.random() * canvas.width;
         const y = Math.random() * canvas.height;
-        const colors = ['rgba(168, 85, 247,', 'rgba(34, 211, 238,', 'rgba(255, 255, 255,'];
+        
+        // DARKER PALETTE: Only Deep Purple and Dark Cyan. No White.
+        const colors = [
+            'rgba(147, 51, 234,', // Purple 600
+            'rgba(88, 28, 135,',  // Purple 900
+            'rgba(8, 145, 178,'   // Cyan 600
+        ];
         const colorBase = colors[Math.floor(Math.random() * colors.length)];
         
         particlesRef.current.push({
@@ -46,103 +53,93 @@ export const QuantumField = () => {
           y,
           baseX: x,
           baseY: y,
-          vx: (Math.random() - 0.5) * 0.5, // Slow drift velocity
-          vy: (Math.random() - 0.5) * 0.5,
-          radius: Math.random() * 2 + 0.5,
+          vx: (Math.random() - 0.5) * 0.3, // Slower, heavier movement
+          vy: (Math.random() - 0.5) * 0.3,
+          radius: Math.random() * 2 + 1,
           color: colorBase,
           density: (Math.random() * 30) + 1,
         });
       }
     };
 
-    // 2. Animation Loop
     const animate = () => {
+      // CLEAR RECT: Use a very slight fade effect for trails (optional)
+      // or clear completely for crispness. We clear completely for the "Dark" look.
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Draw connecting lines first (subtle web effect)
       connectParticles(ctx);
 
-      // Update and draw particles
       particlesRef.current.forEach(p => {
-        // Physics - Mouse interaction
+        // Physics
         let dx = mouseRef.current.x - p.x;
         let dy = mouseRef.current.y - p.y;
         let distance = Math.sqrt(dx * dx + dy * dy);
-        let forceDirectionX = dx / distance;
-        let forceDirectionY = dy / distance;
-        let maxDistance = mouseRef.current.radius;
-        let force = (maxDistance - distance) / maxDistance;
-        let directionX = forceDirectionX * force * p.density;
-        let directionY = forceDirectionY * force * p.density;
-
+        
         if (distance < mouseRef.current.radius) {
-          // Attract to mouse
-          p.x += directionX;
-          p.y += directionY;
+          const forceDirectionX = dx / distance;
+          const forceDirectionY = dy / distance;
+          const force = (mouseRef.current.radius - distance) / mouseRef.current.radius;
+          const directionX = forceDirectionX * force * p.density;
+          const directionY = forceDirectionY * force * p.density;
+          p.x -= directionX * 0.2; // Gentle repulsion
+          p.y -= directionY * 0.2;
         } else {
-          // Return to base position (drift back)
-          if (p.x !== p.baseX) {
-              let dx = p.x - p.baseX;
-              p.x -= dx/20;
-          }
-          if (p.y !== p.baseY) {
-              let dy = p.y - p.baseY;
-              p.y -= dy/20;
-          }
+          if (p.x !== p.baseX) { let dx = p.x - p.baseX; p.x -= dx/60; }
+          if (p.y !== p.baseY) { let dy = p.y - p.baseY; p.y -= dy/60; }
         }
 
-        // Apply drift drift
         p.x += p.vx;
         p.y += p.vy;
 
-        // Draw particle with glowing opacity based on mouse proximity
-        const opacity = 1 - (distance / 200);
-        const finalOpacity = opacity > 0 ? opacity : 0.1;
+        // Draw
+        // Lower opacity for a darker feel (0.1 to 0.5 max)
+        const proximityOp = 1 - (distance / 200);
+        const baseOpacity = 0.3; 
+        const finalOpacity = proximityOp > 0 ? (baseOpacity + proximityOp * 0.4) : baseOpacity;
         
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        // Add a glow effect
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = p.color + '1)';
         ctx.fillStyle = p.color + finalOpacity + ')';
         ctx.fill();
-        ctx.shadowBlur = 0; // Reset shadow for next elements
       });
 
       animationFrameId = requestAnimationFrame(animate);
     };
 
     const connectParticles = (ctx: CanvasRenderingContext2D) => {
+        const maxDist = (canvas.width/7) * (canvas.height/7);
         for (let a = 0; a < particlesRef.current.length; a++) {
             for (let b = a; b < particlesRef.current.length; b++) {
-                let distance = (( particlesRef.current[a].x - particlesRef.current[b].x) * ( particlesRef.current[a].x - particlesRef.current[b].x))
-                             + (( particlesRef.current[a].y - particlesRef.current[b].y) * ( particlesRef.current[a].y - particlesRef.current[b].y));
-                // If particles are close, draw a line
-                if (distance < (canvas.width/7) * (canvas.height/7)) {
-                    let opacityValue = 1 - (distance/10000);
-                    ctx.strokeStyle = 'rgba(168, 85, 247,' + opacityValue * 0.2 + ')'; // Very subtle purple lines
-                    ctx.lineWidth = 0.5;
-                    ctx.beginPath();
-                    ctx.moveTo(particlesRef.current[a].x, particlesRef.current[a].y);
-                    ctx.lineTo(particlesRef.current[b].x, particlesRef.current[b].y);
-                    ctx.stroke();
+                let dx = particlesRef.current[a].x - particlesRef.current[b].x;
+                let dy = particlesRef.current[a].y - particlesRef.current[b].y;
+                let distance = dx * dx + dy * dy;
+
+                if (distance < maxDist) {
+                    let opacityValue = 1 - (distance/15000);
+                    if (opacityValue > 0) {
+                        // Very faint, dark lines
+                        ctx.strokeStyle = 'rgba(107, 33, 168,' + (opacityValue * 0.15) + ')'; 
+                        ctx.lineWidth = 0.5;
+                        ctx.beginPath();
+                        ctx.moveTo(particlesRef.current[a].x, particlesRef.current[a].y);
+                        ctx.lineTo(particlesRef.current[b].x, particlesRef.current[b].y);
+                        ctx.stroke();
+                    }
                 }
             }
         }
     }
 
-    // 3. Event Listeners
     window.addEventListener('resize', resize);
     window.addEventListener('mousemove', (e) => {
-        mouseRef.current.x = e.x;
-        mouseRef.current.y = e.y;
+        mouseRef.current.x = e.clientX;
+        mouseRef.current.y = e.clientY;
     });
     window.addEventListener('mouseout', () => {
         mouseRef.current.x = -1000;
         mouseRef.current.y = -1000;
     })
 
-    // Initialize
     resize();
     animate();
 
@@ -155,8 +152,9 @@ export const QuantumField = () => {
   return (
     <canvas 
       ref={canvasRef} 
-      className="fixed inset-0 pointer-events-none z-0 mix-blend-screen"
-      style={{ filter: 'blur(1px)' }} // Subtle softness
+      // Removed 'mix-blend-screen' to keep the deep blacks
+      // Added absolute positioning and z-index
+      className="fixed inset-0 pointer-events-none -z-10 bg-[#020617]"
     />
   );
 };
